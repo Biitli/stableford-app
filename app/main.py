@@ -16,7 +16,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import ai, pdf
 from .rankings import daily_ranking, score_player, season_ranking, tee_of
 from .repo import Repo, slug
-from .storage import storage_from_env
+from .storage import dropbox_token_set, storage_from_env
 
 BASE = Path(__file__).parent
 app = FastAPI(title="Stableford")
@@ -50,7 +50,7 @@ app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SECRET_KEY", PA
 def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx.setdefault("settings", repo.settings())
     ctx.setdefault("ai_available", ai.available())
-    ctx.setdefault("dropbox_connected", bool(os.environ.get("DROPBOX_REFRESH_TOKEN")))
+    ctx.setdefault("dropbox_connected", dropbox_token_set())
     return templates.TemplateResponse(request, name, ctx)
 
 
@@ -391,7 +391,7 @@ def _dropbox_flow():
 def dropbox_setup(request: Request):
     ready = bool(os.environ.get("DROPBOX_APP_KEY") and os.environ.get("DROPBOX_APP_SECRET"))
     return render(request, "dropbox.html", ready=ready, url=_dropbox_flow().start() if ready else None,
-                  connected=bool(os.environ.get("DROPBOX_REFRESH_TOKEN")), token=None, error=None)
+                  connected=dropbox_token_set(), token=None, error=None)
 
 
 @app.post("/dropbox", response_class=HTMLResponse)

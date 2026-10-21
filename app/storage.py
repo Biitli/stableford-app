@@ -95,9 +95,14 @@ class DropboxStorage:
         return sorted(names)
 
 
+def dropbox_token_set() -> bool:
+    """Ein Platzhalter wie "leer" (Render verlangt evtl. einen Wert) zählt nicht als Token."""
+    return len(os.environ.get("DROPBOX_REFRESH_TOKEN", "").strip()) > 20
+
+
 def storage_from_env() -> Storage:
     key = os.environ.get("DROPBOX_APP_KEY")
-    if key and os.environ.get("DROPBOX_REFRESH_TOKEN"):
+    if key and dropbox_token_set():
         return DropboxStorage(
             key,
             os.environ["DROPBOX_APP_SECRET"],
