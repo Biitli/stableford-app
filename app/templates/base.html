@@ -17,6 +17,12 @@
   <a href="/einstellungen">Einstellungen</a>
 </header>
 <main>
+{% if storage_local %}
+<div class="info warn noprint" style="background:#fdecea;border-color:#e0a39d">
+  Achtung: Dropbox ist nicht verbunden. Alles, was du jetzt erfasst, geht beim nächsten Neustart der App verloren.
+  <a href="/dropbox">Dropbox einrichten</a>
+</div>
+{% endif %}
 {% block content %}{% endblock %}
 </main>
 </body>

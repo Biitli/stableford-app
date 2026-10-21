@@ -17,7 +17,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import ai, importer, pdf
 from .rankings import daily_ranking, score_player, season_ranking, tee_of
 from .repo import Repo, slug
-from .storage import dropbox_token_set, storage_from_env
+from .storage import LocalStorage, dropbox_token_set, storage_from_env
 
 BASE = Path(__file__).parent
 app = FastAPI(title="Stableford")
@@ -63,7 +63,8 @@ app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SECRET_KEY", PA
 def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx.setdefault("settings", repo.settings())
     ctx.setdefault("ai_available", ai.available())
-    ctx.setdefault("dropbox_connected", dropbox_token_set())
+    ctx.setdefault("dropbox_connected", not isinstance(repo.st, LocalStorage))
+    ctx.setdefault("storage_local", isinstance(repo.st, LocalStorage) and bool(PASSWORD))
     return templates.TemplateResponse(request, name, ctx)
 
 
@@ -502,8 +503,17 @@ def _dropbox_flow():
 @app.get("/dropbox", response_class=HTMLResponse)
 def dropbox_setup(request: Request):
     ready = bool(os.environ.get("DROPBOX_APP_KEY") and os.environ.get("DROPBOX_APP_SECRET"))
+    test = None
+    if not isinstance(repo.st, LocalStorage):
+        try:
+            stamp = date.today().isoformat()
+            repo.st.write("verbindungstest.txt", stamp.encode())
+            ok = repo.st.read("verbindungstest.txt") == stamp.encode()
+            test = "Verbindung getestet: Schreiben und Lesen in Dropbox funktioniert." if ok else "Test fehlgeschlagen."
+        except Exception as e:  # noqa: BLE001
+            test = f"Dropbox-Test fehlgeschlagen: {e}"
     return render(request, "dropbox.html", ready=ready, url=_dropbox_flow().start() if ready else None,
-                  connected=dropbox_token_set(), token=None, error=None)
+                  connected=not isinstance(repo.st, LocalStorage), token=None, error=None, test=test)
 
 
 @app.post("/dropbox", response_class=HTMLResponse)
@@ -513,7 +523,7 @@ def dropbox_finish(request: Request, code: str = Form(...)):
     except Exception as e:  # noqa: BLE001
         token, error = None, f"Das hat nicht geklappt ({e}). Bitte den Link nochmals öffnen."
     return render(request, "dropbox.html", ready=True, url=_dropbox_flow().start(), connected=False,
-                  token=token, error=error)
+                  token=token, error=error, test=None)
 
 
 # Einstellungen
