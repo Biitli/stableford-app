@@ -41,7 +41,8 @@ Ohne Dropbox-Zugang speichert die App lokal im Ordner `data/` (zum Ausprobieren)
 1. Auf <https://www.dropbox.com/developers/apps> "Create app" → "Scoped access" → "App folder" → Name z.B. `Stableford-Beat`.
 2. Unter *Permissions* `files.content.read` und `files.content.write` ankreuzen, "Submit".
 3. Unter *Settings* App key und App secret kopieren.
-4. `python scripts/dropbox_token.py` ausführen und den Refresh-Token übernehmen.
+4. App key und App secret bei Render eintragen, dann in der App unter *Einstellungen → Dropbox einrichten* freigeben und den angezeigten Refresh-Token bei Render als `DROPBOX_REFRESH_TOKEN` eintragen.
+   (Alternativ ohne App: `python scripts/dropbox_token.py`.)
 
 Mit "App folder" sieht die App nur ihren eigenen Ordner (`Dropbox/Apps/Stableford-Beat/`).
 

@@ -97,7 +97,7 @@ class DropboxStorage:
 
 def storage_from_env() -> Storage:
     key = os.environ.get("DROPBOX_APP_KEY")
-    if key:
+    if key and os.environ.get("DROPBOX_REFRESH_TOKEN"):
         return DropboxStorage(
             key,
             os.environ["DROPBOX_APP_SECRET"],

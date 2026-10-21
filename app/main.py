@@ -50,6 +50,7 @@ app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SECRET_KEY", PA
 def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx.setdefault("settings", repo.settings())
     ctx.setdefault("ai_available", ai.available())
+    ctx.setdefault("dropbox_connected", bool(os.environ.get("DROPBOX_REFRESH_TOKEN")))
     return templates.TemplateResponse(request, name, ctx)
 
 
@@ -376,6 +377,31 @@ def season_pdf(group: str, year: int, streich: int = 0):
     fname = f"Jahreswertung_{year}{'_Streichresultat' if streich else ''}.pdf"
     repo.save_pdf(group, fname, data)
     return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{fname}"'})
+
+
+# Dropbox verbinden: liefert den Refresh-Token, der danach bei Render eingetragen wird
+def _dropbox_flow():
+    from dropbox import DropboxOAuth2FlowNoRedirect
+
+    return DropboxOAuth2FlowNoRedirect(os.environ["DROPBOX_APP_KEY"], os.environ["DROPBOX_APP_SECRET"],
+                                       token_access_type="offline")
+
+
+@app.get("/dropbox", response_class=HTMLResponse)
+def dropbox_setup(request: Request):
+    ready = bool(os.environ.get("DROPBOX_APP_KEY") and os.environ.get("DROPBOX_APP_SECRET"))
+    return render(request, "dropbox.html", ready=ready, url=_dropbox_flow().start() if ready else None,
+                  connected=bool(os.environ.get("DROPBOX_REFRESH_TOKEN")), token=None, error=None)
+
+
+@app.post("/dropbox", response_class=HTMLResponse)
+def dropbox_finish(request: Request, code: str = Form(...)):
+    try:
+        token, error = _dropbox_flow().finish(code.strip()).refresh_token, None
+    except Exception as e:  # noqa: BLE001
+        token, error = None, f"Das hat nicht geklappt ({e}). Bitte den Link nochmals öffnen."
+    return render(request, "dropbox.html", ready=True, url=_dropbox_flow().start(), connected=False,
+                  token=token, error=error)
 
 
 # Einstellungen

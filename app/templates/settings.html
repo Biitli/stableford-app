@@ -12,6 +12,7 @@
   <div><button>Speichern</button></div>
 </form>
 <div class="card muted">
+  Dropbox: <a href="/dropbox">{{ "verbunden" if dropbox_connected else "einrichten" }}</a><br>
   Fotoerkennung: {{ "eingerichtet" if ai_available else "nicht eingerichtet (ANTHROPIC_API_KEY fehlt)" }}
 </div>
 {% endblock %}
