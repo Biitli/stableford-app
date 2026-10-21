@@ -17,7 +17,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import ai, importer, pdf
 from .rankings import daily_ranking, score_player, season_ranking, tee_of
 from .repo import DEFAULT_SETTINGS, Repo, slug
-from .storage import LocalStorage, dropbox_token_set, storage_from_env
+from .storage import LocalStorage, dropbox_token_set, env, storage_from_env
 
 BASE = Path(__file__).parent
 app = FastAPI(title="Stableford")
@@ -525,7 +525,7 @@ def _dropbox_flow():
     from dropbox import DropboxOAuth2FlowNoRedirect
 
     # Berechtigungen ausdrücklich anfordern, damit ein neuer Token sie sicher enthält
-    return DropboxOAuth2FlowNoRedirect(os.environ["DROPBOX_APP_KEY"], os.environ["DROPBOX_APP_SECRET"],
+    return DropboxOAuth2FlowNoRedirect(env("DROPBOX_APP_KEY"), env("DROPBOX_APP_SECRET"),
                                        token_access_type="offline",
                                        scope=["files.content.read", "files.content.write"])
 

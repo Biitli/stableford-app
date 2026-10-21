@@ -95,18 +95,23 @@ class DropboxStorage:
         return sorted(names)
 
 
+def env(name: str, default: str = "") -> str:
+    """Wert ohne Leerzeichen und Zeilenumbrüche (Render fügt beim Einfügen manchmal welche ein)."""
+    return "".join(os.environ.get(name, default).split())
+
+
 def dropbox_token_set() -> bool:
     """Ein Platzhalter wie "leer" (Render verlangt evtl. einen Wert) zählt nicht als Token."""
-    return len(os.environ.get("DROPBOX_REFRESH_TOKEN", "").strip()) > 20
+    return len(env("DROPBOX_REFRESH_TOKEN")) > 20
 
 
 def storage_from_env() -> Storage:
-    key = os.environ.get("DROPBOX_APP_KEY")
+    key = env("DROPBOX_APP_KEY")
     if key and dropbox_token_set():
         return DropboxStorage(
             key,
-            os.environ["DROPBOX_APP_SECRET"],
-            os.environ["DROPBOX_REFRESH_TOKEN"],
+            env("DROPBOX_APP_SECRET"),
+            env("DROPBOX_REFRESH_TOKEN"),
             os.environ.get("DROPBOX_FOLDER", "/Stableford"),
         )
     return LocalStorage(os.environ.get("DATA_DIR", "data"))

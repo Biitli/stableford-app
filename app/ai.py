@@ -17,7 +17,7 @@ def available() -> bool:
 def _client():
     import anthropic
 
-    return anthropic.Anthropic()
+    return anthropic.Anthropic(api_key="".join(os.environ.get("ANTHROPIC_API_KEY", "").split()))
 
 
 def _json_text(resp) -> dict:
