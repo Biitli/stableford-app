@@ -6,6 +6,7 @@ import hmac
 import os
 from datetime import date
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -117,22 +118,73 @@ def home(request: Request):
 
 
 # Mitglieder
+def set_hcp(m: dict, hcp: float | None) -> bool:
+    """Setzt das Handicap und merkt sich das Änderungsdatum. Gibt True zurück, wenn es sich geändert hat."""
+    if hcp is None or m.get("hcp") == hcp:
+        return False
+    m["hcp"] = hcp
+    m["hcp_updated"] = date.today().isoformat()
+    return True
+
+
+def members_page(request: Request, gruppe: str = "", edit: str | None = None, info: str | None = None):
+    ms = [m for m in repo.members() if not gruppe or gruppe in m.get("groups", [])]
+    return render(request, "members.html", members=ms, group=gruppe, edit=repo.member(edit) if edit else None,
+                  info=info)
+
+
 @app.get("/mitglieder", response_class=HTMLResponse)
-def members(request: Request, edit: str | None = None):
-    return render(request, "members.html", members=repo.members(), edit=repo.member(edit) if edit else None,
-                  info=None)
+def members(request: Request, gruppe: str = "", edit: str | None = None, info: str | None = None):
+    return members_page(request, gruppe, edit, info)
 
 
 @app.post("/mitglieder")
 def save_member(id: str = Form(""), name: str = Form(...), hcp: str = Form(...),
-                groups: list[str] = Form([]), aliases: str = Form(""), ladies: str = Form("")):
-    m = repo.member(id) if id else {}
-    m = {**(m or {}), "name": name.strip(), "hcp": to_float(hcp, 54.0), "groups": groups,
-         "aliases": [a.strip() for a in aliases.split(",") if a.strip()], "ladies": bool(ladies)}
-    if id:
-        m["id"] = id
+                groups: list[str] = Form([]), aliases: str = Form(""), gruppe: str = Form("")):
+    m = (repo.member(id) if id else None) or {}
+    m.update({"name": name.strip(), "groups": groups,
+              "aliases": [a.strip() for a in aliases.split(",") if a.strip()]})
+    set_hcp(m, to_float(hcp, 54.0))
     repo.save_member(m)
-    return back("/mitglieder")
+    return back(f"/mitglieder?gruppe={quote(gruppe)}")
+
+
+@app.post("/mitglieder/hcp")
+async def save_hcp_list(request: Request):
+    f = await request.form()
+    changed = []
+    for m in repo.members():
+        v = f.get(f"hcp_{m['id']}")
+        if v is not None and set_hcp(m, to_float(v)):
+            changed.append(m)
+    repo.save_members(changed)
+    gruppe = str(f.get("gruppe", ""))
+    msg = f"{len(changed)} Handicap(s) gespeichert." if changed else "Keine Änderungen."
+    return back(f"/mitglieder?gruppe={quote(gruppe)}&info={quote(msg)}")
+
+
+@app.get("/mitglieder/excel")
+def export_members(gruppe: str = ""):
+    import io
+
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Handicaps"
+    ws.append([f"Handicap {gruppe}".strip(), None, None, f"Stand {date.today().strftime('%d.%m.%Y')}"])
+    ws.append(["Name", "HCP", "Gruppen", "Geändert"])
+    for m in repo.members():
+        if not gruppe or gruppe in m.get("groups", []):
+            ws.append([m["name"], m["hcp"], ", ".join(m.get("groups", [])),
+                       pdf.fmt_date(m["hcp_updated"]) if m.get("hcp_updated") else ""])
+    ws.column_dimensions["A"].width = 26
+    ws.column_dimensions["C"].width = 22
+    buf = io.BytesIO()
+    wb.save(buf)
+    fname = f"Handicaps_{slug(gruppe) if gruppe else 'alle'}.xlsx"
+    return Response(buf.getvalue(), headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @app.post("/mitglieder/import", response_class=HTMLResponse)
@@ -145,25 +197,29 @@ async def import_members(request: Request, group: str = Form(...), file: UploadF
         error = None if rows else "In der Datei wurden keine Namen mit Handicap gefunden."
     by_name = {slug(m["name"]): m for m in repo.members()}
     added = updated = 0
+    changed = []
     for name, hcp in rows:
         m = by_name.get(slug(name))
         if m:
-            m["hcp"] = hcp
+            set_hcp(m, hcp)
             if group not in m.get("groups", []):
                 m.setdefault("groups", []).append(group)
             updated += 1
         else:
-            m = {"name": name, "hcp": hcp, "groups": [group], "aliases": []}
+            m = {"name": name, "groups": [group], "aliases": []}
+            set_hcp(m, hcp)
             added += 1
-        by_name[slug(name)] = repo.save_member(m)
+        by_name[slug(name)] = m
+        changed.append(m)
+    repo.save_members(changed)
     info = error or f"{added} neu erfasst, {updated} aktualisiert ({group})."
-    return render(request, "members.html", members=repo.members(), edit=None, info=info)
+    return members_page(request, group, None, info)
 
 
 @app.post("/mitglieder/{mid}/loeschen")
-def delete_member(mid: str):
+def delete_member(mid: str, gruppe: str = Form("")):
     repo.delete_member(mid)
-    return back("/mitglieder")
+    return back(f"/mitglieder?gruppe={quote(gruppe)}")
 
 
 # Plätze

@@ -141,3 +141,20 @@ def test_tee_must_be_chosen(client, monkeypatch):
     form.update({f"s0_{h}": str(p) for h, p in enumerate(PARS)})
     client.post(f"/runden/{rid}/spieler", data=form)
     assert main.repo.round(rid)["players"][0]["tee"] == "Rot Damen"
+
+
+def test_hcp_list_edit_and_export(client):
+    client.post("/mitglieder", data={"name": "Beat Bieler", "hcp": "13.8", "groups": ["C-Club"]})
+    client.post("/mitglieder", data={"name": "Pin Seeker", "hcp": "20", "groups": ["Pinseekers"]})
+    ms = {m["name"]: m for m in main.repo.members()}
+    r = client.get("/mitglieder?gruppe=C-Club")
+    assert "Beat Bieler" in r.text and "Pin Seeker" not in r.text
+    r = client.post("/mitglieder/hcp", data={"gruppe": "C-Club", f"hcp_{ms['Beat Bieler']['id']}": "12,9"})
+    assert "1 Handicap(s) gespeichert" in r.text
+    m = main.repo.member(ms["Beat Bieler"]["id"])
+    assert m["hcp"] == 12.9 and m["hcp_updated"]
+    assert main.repo.member(ms["Pin Seeker"]["id"])["hcp"] == 20
+    r = client.get("/mitglieder/excel?gruppe=C-Club")
+    assert r.headers["content-type"].startswith("application/vnd.openxml")
+    client.post(f"/mitglieder/{ms['Pin Seeker']['id']}/loeschen", data={"gruppe": "Pinseekers"})
+    assert len(main.repo.members()) == 1

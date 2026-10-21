@@ -38,3 +38,8 @@ label.btn.busy { opacity:.5; pointer-events:none; }
 .tee input:checked + span { border-color:var(--green); background:#e6f2e8; font-weight:700; }
 .tee input:focus-visible + span { outline:2px solid var(--green); }
 .dot { display:inline-block; width:14px; height:14px; border-radius:50%; border:1px solid #888; vertical-align:middle; margin-right:4px; }
+.hcplist input { width:4.5em; text-align:center; }
+details summary { cursor:pointer; }
+@media print { .hcplist input { border:0; } }
+.hcplist .btn, .hcplist button { padding:6px 10px; margin:1px; }
+.hcplist td, .hcplist th { padding:4px 3px; }

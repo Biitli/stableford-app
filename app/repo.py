@@ -50,6 +50,14 @@ class Repo:
         write_json(self.st, "mitglieder.json", ms)
         return m
 
+    def save_members(self, ms: list[dict]) -> None:
+        """Mehrere Mitglieder auf einmal speichern (eine Dropbox-Datei, ein Schreibvorgang)."""
+        by_id = {m["id"]: m for m in self.members()}
+        for m in ms:
+            m.setdefault("id", new_id())
+            by_id[m["id"]] = m
+        write_json(self.st, "mitglieder.json", list(by_id.values()))
+
     def delete_member(self, mid: str) -> None:
         write_json(self.st, "mitglieder.json", [m for m in self.members() if m["id"] != mid])
 
