@@ -524,8 +524,10 @@ def season_pdf(group: str, year: int, streich: int = 0, brutto: int = 0):
 def _dropbox_flow():
     from dropbox import DropboxOAuth2FlowNoRedirect
 
+    # Berechtigungen ausdrücklich anfordern, damit ein neuer Token sie sicher enthält
     return DropboxOAuth2FlowNoRedirect(os.environ["DROPBOX_APP_KEY"], os.environ["DROPBOX_APP_SECRET"],
-                                       token_access_type="offline")
+                                       token_access_type="offline",
+                                       scope=["files.content.read", "files.content.write"])
 
 
 @app.get("/dropbox", response_class=HTMLResponse)
