@@ -6,11 +6,12 @@
 <div class="card noprint">
   <h2>Scorekarten hinzufügen</h2>
   {% if ai_available %}
-  <form method="post" action="/runden/{{ rnd.id }}/foto" enctype="multipart/form-data" onsubmit="this.querySelector('button').textContent='Wird gelesen …'">
-    <input type="file" name="photos" accept="image/*" multiple required>
-    <button>Foto(s) auswerten</button>
+  <form method="post" action="/runden/{{ rnd.id }}/foto" enctype="multipart/form-data">
+    <label class="btn">📷 Scorekarte fotografieren<input class="photo-input vh" type="file" name="photos" accept="image/*" capture="environment"></label>
+    <label class="btn sec">Aus Fotos wählen<input class="photo-input vh" type="file" name="photos" accept="image/*" multiple></label>
+    <span class="photo-status"></span>
   </form>
-  <p class="muted">Du kannst mehrere Fotos auf einmal wählen. Danach prüfst du die erkannten Werte.</p>
+  <p class="muted">Die Karte wird nach dem Fotografieren sofort ausgewertet, danach prüfst du die erkannten Werte. Aus den Fotos kannst du mehrere Karten auf einmal wählen.</p>
   {% else %}
   <p class="muted">Fotoerkennung ist noch nicht eingerichtet (Anthropic-Schlüssel fehlt).</p>
   {% endif %}
