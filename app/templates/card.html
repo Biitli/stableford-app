@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ p.name }}</h1>
+<p class="muted">{{ course.name }} · {{ tee.name }} (CR {{ tee.cr }}, Slope {{ tee.slope }}) · HCP-Index {{ p.hcp_index }} · Course HCP {{ res.course_hcp }} · Spiel-HCP {{ res.playing_hcp }}</p>
+<div class="card scroll">
+<table class="grid">
+  <tr><th>Loch</th>{% for h in course.holes %}<th>{{ loop.index }}</th>{% endfor %}<th>Total</th></tr>
+  <tr><th>Par</th>{% for h in course.holes %}<td>{{ h.par }}</td>{% endfor %}<td>{{ course.holes|sum(attribute="par") }}</td></tr>
+  <tr><th>SI</th>{% for h in course.holes %}<td class="muted">{{ h.si }}</td>{% endfor %}<td></td></tr>
+  <tr><th>Vorgabe</th>{% for r in res.received %}<td class="muted">{{ r }}</td>{% endfor %}<td>{{ res.received|sum }}</td></tr>
+  <tr><th>Schläge</th>{% for s in p.scores %}<td><b>{{ s or "–" }}</b></td>{% endfor %}<td>{{ res.gross_strokes or "–" }}</td></tr>
+  <tr><th>Netto</th>{% for x in res.net_points %}<td>{{ x }}</td>{% endfor %}<td><b>{{ res.net_total }}</b></td></tr>
+  <tr><th>Brutto</th>{% for x in res.gross_points %}<td>{{ x }}</td>{% endfor %}<td>{{ res.gross_total }}</td></tr>
+</table>
+</div>
+<a class="btn sec" href="/runden/{{ rnd.id }}">Zurück</a>
+{% endblock %}

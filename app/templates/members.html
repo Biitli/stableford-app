@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Mitglieder</h1>
+<div class="card">
+  <h2>{{ "Mitglied bearbeiten" if edit else "Neues Mitglied" }}</h2>
+  <form method="post" action="/mitglieder">
+    <input type="hidden" name="id" value="{{ edit.id if edit else '' }}">
+    <div class="row">
+      <div><label>Name</label><input name="name" required value="{{ edit.name if edit else '' }}" placeholder="Vorname Nachname"></div>
+      <div><label>Handicap-Index</label><input name="hcp" required inputmode="decimal" size="6" value="{{ edit.hcp if edit else '' }}"></div>
+    </div>
+    <label>Gruppen</label>
+    {% for g in settings.groups %}
+      <label style="display:inline;font-weight:normal;margin-right:12px">
+        <input type="checkbox" name="groups" value="{{ g }}" {% if edit and g in edit.groups %}checked{% endif %}> {{ g }}</label>
+    {% endfor %}
+    <label style="font-weight:normal"><input type="checkbox" name="ladies" value="1" {% if edit and edit.ladies %}checked{% endif %}> spielt von den Damen-Abschlägen</label>
+    <label>Andere Schreibweisen auf der Scorekarte (mit Komma getrennt)</label>
+    <input name="aliases" size="40" value="{{ (edit.aliases or [])|join(', ') if edit else '' }}" placeholder="z.B. Beat B., Biitli">
+    <div><button>Speichern</button>{% if edit %}<a class="btn sec" href="/mitglieder">Abbrechen</a>{% endif %}</div>
+  </form>
+</div>
+<div class="card scroll">
+<table>
+  <tr><th>Name</th><th class="num">HCP</th><th>Gruppen</th><th></th></tr>
+  {% for m in members %}
+  <tr>
+    <td>{{ m.name }}</td><td class="num">{{ "%.1f"|format(m.hcp) }}</td><td>{{ m.groups|join(", ") }}</td>
+    <td style="white-space:nowrap">
+      <a class="btn sec" href="/mitglieder?edit={{ m.id }}">Ändern</a>
+      <form class="inline" method="post" action="/mitglieder/{{ m.id }}/loeschen" onsubmit="return confirm('{{ m.name }} löschen?')"><button class="danger">×</button></form>
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="4" class="muted">Noch keine Mitglieder erfasst.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

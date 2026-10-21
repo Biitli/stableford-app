@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ "Platz bearbeiten" if course.id else "Neuer Platz" }}</h1>
+{% if info %}<div class="info">{{ info }}</div>{% endif %}
+<form method="post" action="/plaetze">
+<div class="card">
+  <input type="hidden" name="id" value="{{ course.id or '' }}">
+  <input type="hidden" name="source" value="{{ course.source or '' }}">
+  <input type="hidden" name="holes" value="{{ course.holes|length }}">
+  <input type="hidden" name="next" value="{{ request.query_params.get('next', '') }}">
+  <label>Name</label><input name="name" required size="36" value="{{ course.name }}">
+</div>
+<div class="card scroll">
+  <h2>Löcher</h2>
+  <table class="grid">
+    <tr><th>Loch</th>{% for h in course.holes %}<th>{{ loop.index }}</th>{% endfor %}</tr>
+    <tr><th>Par</th>{% for h in course.holes %}<td><input name="par{{ loop.index0 }}" value="{{ h.par }}" inputmode="numeric" required></td>{% endfor %}</tr>
+    <tr><th>SI</th>{% for h in course.holes %}<td><input name="si{{ loop.index0 }}" value="{{ h.si }}" inputmode="numeric" required></td>{% endfor %}</tr>
+  </table>
+  <p class="muted">SI = Stroke Index (auf der Scorekarte oft "Hcp" genannt).</p>
+</div>
+<div class="card">
+  <h2>Abschläge</h2>
+  <table>
+    <tr><th>Abschlag</th><th>Course Rating</th><th>Slope</th></tr>
+    {% set tees = course.tees + [{"name":"","cr":"","slope":""}, {"name":"","cr":"","slope":""}] %}
+    {% for t in tees %}
+    <tr>
+      <td><input name="tee{{ loop.index0 }}" value="{{ t.name }}" placeholder="z.B. Gelb Herren"></td>
+      <td><input name="cr{{ loop.index0 }}" value="{{ t.cr }}" inputmode="decimal" size="6"></td>
+      <td><input name="slope{{ loop.index0 }}" value="{{ t.slope }}" inputmode="numeric" size="5"></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+<button>Speichern</button>
+</form>
+{% if course.id %}
+<form method="post" action="/plaetze/{{ course.id }}/loeschen" onsubmit="return confirm('Platz löschen?')"><button class="danger">Platz löschen</button></form>
+{% endif %}
+{% endblock %}

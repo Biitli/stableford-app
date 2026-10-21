@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Neue Runde</h1>
+{% if not courses %}
+<div class="info">Zuerst einen <a href="/plaetze">Platz erfassen</a>.</div>
+{% else %}
+<form method="post" action="/runden" class="card">
+  <label>Gruppe</label>
+  <select name="group">{% for g in settings.groups %}<option {% if g == group %}selected{% endif %}>{{ g }}</option>{% endfor %}</select>
+  <label>Datum</label><input type="date" name="date" value="{{ today }}" required>
+  <label>Platz und Abschlag</label>
+  <select name="course_tee" required>
+    {% for c in courses %}<optgroup label="{{ c.name }}">
+      {% for t in c.tees %}<option value="{{ c.id }}|{{ t.name }}">{{ c.name }} – {{ t.name }}</option>{% endfor %}
+    </optgroup>{% endfor %}
+  </select>
+  <p class="muted">Platz fehlt? <a href="/plaetze">Hier erfassen</a>.</p>
+  <label>Titel (optional)</label><input name="title" size="30" placeholder="z.B. Frühlingsturnier">
+  <div><button>Runde anlegen</button></div>
+</form>
+{% endif %}
+{% endblock %}

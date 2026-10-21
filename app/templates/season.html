@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Jahreswertung {{ year }} – {{ group }}</h1>
+<div class="noprint">
+  <a class="btn {{ 'sec' if drop else '' }}" href="?streich=0">Alle Resultate</a>
+  <a class="btn {{ '' if drop else 'sec' }}" href="?streich=1">Mit Streichresultat</a>
+</div>
+{% if not rows %}<p class="muted">Noch keine ausgewerteten Runden in {{ year }}.</p>{% else %}
+<div class="card scroll">
+<table>
+  <tr><th class="num">Rang</th><th>Name</th>
+    {% for r in rounds %}<th class="num"><a href="/runden/{{ r.id }}">{{ (r.date|datum)[:5] }}</a></th>{% endfor %}
+    <th class="num">Total</th><th class="num">Runden</th></tr>
+  {% for s in rows %}
+  <tr><td class="num">{{ s.rank }}</td><td>{{ s.name }}</td>
+    {% for x in s.results %}<td class="num {% if loop.index0 == s.dropped_index %}struck{% endif %}">{{ "–" if x is none else x }}</td>{% endfor %}
+    <td class="num"><b>{{ s.total }}</b></td><td class="num">{{ s.played }}</td></tr>
+  {% endfor %}
+</table>
+<p class="muted">Nettopunkte Stableford.{% if drop %} Durchgestrichen = Streichresultat{% if settings.missed_round_counts_as_zero %} (eine verpasste Runde zählt als 0 und wird zuerst gestrichen){% endif %}.{% endif %}</p>
+</div>
+<div class="noprint">
+  <a class="btn" href="/jahr/{{ group|urlencode }}/{{ year }}/pdf?streich={{ 1 if drop else 0 }}" target="_blank">PDF / Drucken</a>
+  <button class="wa" onclick="shareRanking('/jahr/{{ group|urlencode }}/{{ year }}/pdf?streich={{ 1 if drop else 0 }}', 'Jahreswertung_{{ year }}.pdf', {{ share_text|tojson|forceescape }})">Per WhatsApp teilen</button>
+  <button class="sec" onclick="shareText({{ share_text|tojson|forceescape }})">Als Text teilen</button>
+</div>
+{% endif %}
+{% endblock %}

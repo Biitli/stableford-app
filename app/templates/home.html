@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+{% for g in groups %}
+<div class="card">
+  <h1>{{ g.name }}</h1>
+  <a class="btn" href="/runden/neu?gruppe={{ g.name|urlencode }}">+ Neue Runde</a>
+  {% for y in g.years %}
+    <a class="btn sec" href="/jahr/{{ g.name|urlencode }}/{{ y }}">Jahreswertung {{ y }}</a>
+  {% endfor %}
+  {% if g.rounds %}
+  <table>
+    <tr><th>Datum</th><th>Platz</th><th class="num">Spieler</th></tr>
+    {% for r in g.rounds %}
+    <tr>
+      <td><a href="/runden/{{ r.id }}">{{ r.date|datum }}</a></td>
+      <td>{{ r.title or (courses[r.course_id].name if r.course_id in courses else "?") }}</td>
+      <td class="num">{{ r.players|length }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">Noch keine Runden.</p>{% endif %}
+</div>
+{% endfor %}
+{% endblock %}

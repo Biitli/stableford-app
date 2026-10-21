@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ rnd.title or "Tagesrangliste" }} – {{ rnd.group }}</h1>
+<p class="muted">{{ rnd.date|datum }} · {{ course.name }} · Abschlag {{ rnd.tee }}{% if rnd.allowance != 1 %} · {{ (rnd.allowance*100)|round|int }} % HCP{% endif %}</p>
+
+<div class="card noprint">
+  <h2>Scorekarten hinzufügen</h2>
+  {% if ai_available %}
+  <form method="post" action="/runden/{{ rnd.id }}/foto" enctype="multipart/form-data" onsubmit="this.querySelector('button').textContent='Wird gelesen …'">
+    <input type="file" name="photos" accept="image/*" multiple required>
+    <button>Foto(s) auswerten</button>
+  </form>
+  <p class="muted">Du kannst mehrere Fotos auf einmal wählen. Danach prüfst du die erkannten Werte.</p>
+  {% else %}
+  <p class="muted">Fotoerkennung ist noch nicht eingerichtet (Anthropic-Schlüssel fehlt).</p>
+  {% endif %}
+  <a class="btn sec" href="/runden/{{ rnd.id }}/spieler">Spieler von Hand erfassen</a>
+</div>
+
+{% if rows %}
+<div class="card scroll">
+<table>
+  <tr><th class="num">Rang</th><th>Name</th><th class="num">HCP</th><th class="num">Spiel-HCP</th><th class="num">Netto</th><th class="num">Brutto</th><th class="num">Schläge</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td class="num">{{ r.rank }}</td><td>{{ r.name }}</td><td class="num">{{ "%.1f"|format(r.hcp_index) }}</td>
+    <td class="num">{{ r.playing_hcp }}</td><td class="num"><b>{{ r.net }}</b></td><td class="num">{{ r.gross }}</td>
+    <td class="num">{{ r.strokes or "–" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+<div class="noprint">
+  <a class="btn" href="/runden/{{ rnd.id }}/pdf" target="_blank">PDF / Drucken</a>
+  <button class="wa" onclick="shareRanking('/runden/{{ rnd.id }}/pdf', 'Rangliste_{{ rnd.date }}.pdf', {{ share_text|tojson|forceescape }})">Per WhatsApp teilen</button>
+  <button class="sec" onclick="shareText({{ share_text|tojson|forceescape }})">Als Text teilen</button>
+  <p class="muted">Jedes erstellte PDF wird automatisch in der Dropbox abgelegt.</p>
+  <a class="btn sec" href="/jahr/{{ rnd.group|urlencode }}/{{ rnd.date[:4] }}">Jahreswertung {{ rnd.date[:4] }}</a>
+</div>
+
+<div class="card noprint">
+  <h2>Erfasste Karten</h2>
+  <table>
+  {% for p in rnd.players %}
+    <tr>
+      <td>{{ p.name }}{% if not p.member_id %} <span class="muted">(Gast)</span>{% endif %}</td>
+      <td class="muted">{{ p.scores|select|list|length }}/{{ p.scores|length }} Löcher</td>
+      <td style="white-space:nowrap">
+        <a class="btn sec" href="/runden/{{ rnd.id }}/karte/{{ loop.index0 }}">Karte</a>
+        <a class="btn sec" href="/runden/{{ rnd.id }}/spieler?idx={{ loop.index0 }}">Ändern</a>
+        <form class="inline" method="post" action="/runden/{{ rnd.id }}/spieler/{{ loop.index0 }}/loeschen" onsubmit="return confirm('Karte von {{ p.name }} löschen?')"><button class="danger">×</button></form>
+      </td>
+    </tr>
+  {% endfor %}
+  </table>
+</div>
+{% endif %}
+<form class="noprint" method="post" action="/runden/{{ rnd.id }}/loeschen" onsubmit="return confirm('Ganze Runde löschen?')"><button class="danger">Runde löschen</button></form>
+{% endblock %}

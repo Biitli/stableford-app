@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ "Karte ändern" if replace is not none else "Scorekarten prüfen" }}</h1>
+<p class="muted">{{ course.name }} · {{ rnd.date|datum }}. Bitte jeden Wert mit der Karte vergleichen. Leeres Feld = Loch nicht beendet (0 Punkte).</p>
+{% for n in notes %}<div class="info">{{ n }}</div>{% endfor %}
+{% if not players %}<div class="info">Auf den Fotos wurden keine Spieler erkannt. <a href="/runden/{{ rnd.id }}">Zurück</a></div>{% endif %}
+<form method="post" action="/runden/{{ rnd.id }}/spieler">
+<input type="hidden" name="count" value="{{ players|length }}">
+<input type="hidden" name="replace" value="{{ '' if replace is none else replace }}">
+{% for p in players %}{% set i = loop.index0 %}
+<div class="card scroll">
+  {% if p.read_name %}<p class="muted">Gelesen: «{{ p.read_name }}»{% if p.member_id and p.match < 0.9 %} <span class="warn">– Zuordnung prüfen</span>{% endif %}{% if not p.member_id %} <span class="warn">– kein Mitglied gefunden</span>{% endif %}</p>{% endif %}
+  <div class="row">
+    <div><label>Mitglied</label>
+      <select name="member{{ i }}" onchange="var o=this.selectedOptions[0]; if(o.dataset.hcp) this.form['hcp{{ i }}'].value=o.dataset.hcp;">
+        <option value="">– Gast (Name rechts) –</option>
+        {% for m in members %}<option value="{{ m.id }}" data-hcp="{{ m.hcp }}" {% if m.id == p.member_id %}selected{% endif %}>{{ m.name }}{% if rnd.group not in m.groups %} ({{ m.groups|join(", ") or "keine Gruppe" }}){% endif %}</option>{% endfor %}
+      </select></div>
+    <div><label>Gastname</label><input name="name{{ i }}" value="{{ '' if p.member_id else p.name }}" size="16"></div>
+    <div><label>Abschlag</label><select name="tee{{ i }}">{% for t in course.tees %}<option {% if t.name == (p.tee or rnd.tee) %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+    <div><label>HCP-Index</label><input name="hcp{{ i }}" value="{{ p.hcp_index }}" inputmode="decimal" size="5"></div>
+    {% if replace is none %}<div><label style="font-weight:normal"><input type="checkbox" name="skip{{ i }}"> nicht übernehmen</label></div>{% endif %}
+  </div>
+  <table class="grid" style="margin-top:8px">
+    <tr><th>Loch</th>{% for h in course.holes %}<th>{{ loop.index }}</th>{% endfor %}</tr>
+    <tr><th>Par</th>{% for h in course.holes %}<td class="muted">{{ h.par }}</td>{% endfor %}</tr>
+    <tr><th>Schläge</th>{% for h in course.holes %}<td><input name="s{{ i }}_{{ loop.index0 }}" value="{{ p.scores[loop.index0] or '' }}" inputmode="numeric"></td>{% endfor %}</tr>
+  </table>
+</div>
+{% endfor %}
+{% if players %}<button>Speichern</button>{% endif %}
+<a class="btn sec" href="/runden/{{ rnd.id }}">Abbrechen</a>
+</form>
+{% endblock %}

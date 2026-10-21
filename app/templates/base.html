@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Stableford{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/share.js"></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="/">⛳ Stableford</a>
+  <a href="/runden/neu">Neue Runde</a>
+  <a href="/mitglieder">Mitglieder</a>
+  <a href="/plaetze">Plätze</a>
+  <a href="/einstellungen">Einstellungen</a>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

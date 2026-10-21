@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Plätze</h1>
+<div class="card">
+  {% if ai_available %}
+  <form method="post" action="/plaetze/suchen" class="row">
+    <div><label>Platz im Netz suchen</label><input name="query" required size="30" placeholder="z.B. Golfclub Wylihof"></div>
+    <button>Suchen</button>
+  </form>
+  <p class="muted">Die Suche dauert etwa eine Minute. Danach prüfst du die Werte in der Eingabemaske.</p>
+  {% endif %}
+  <a class="btn sec" href="/plaetze/neu">Von Hand erfassen (18 Loch)</a>
+  <a class="btn sec" href="/plaetze/neu?loecher=9">9 Loch</a>
+</div>
+<div class="card">
+<table>
+  <tr><th>Platz</th><th class="num">Par</th><th>Abschläge</th><th></th></tr>
+  {% for c in courses %}
+  <tr>
+    <td>{{ c.name }}</td>
+    <td class="num">{{ c.holes|sum(attribute="par") }}</td>
+    <td class="muted">{% for t in c.tees %}{{ t.name }} ({{ t.cr }}/{{ t.slope }}){% if not loop.last %}, {% endif %}{% endfor %}</td>
+    <td><a class="btn sec" href="/plaetze/{{ c.id }}">Ändern</a></td>
+  </tr>
+  {% else %}<tr><td colspan="4" class="muted">Noch keine Plätze erfasst.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}
