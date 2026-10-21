@@ -2,6 +2,14 @@
 {% block content %}
 <h1>{{ "Platz bearbeiten" if course.id else "Neuer Platz" }}</h1>
 {% if info %}<div class="info">{{ info }}</div>{% endif %}
+{% if ai_available and not course.id %}
+<div class="card noprint">
+  <form method="post" action="/plaetze/foto" enctype="multipart/form-data" class="row" onsubmit="this.querySelector('button').textContent='Wird gelesen …'">
+    <div><label>Par und Stroke Index vom Foto der Scorekarte</label><input type="file" name="photo" accept="image/*" required></div>
+    <button>Foto auswerten</button>
+  </form>
+</div>
+{% endif %}
 <form method="post" action="/plaetze">
 <div class="card">
   <input type="hidden" name="id" value="{{ course.id or '' }}">

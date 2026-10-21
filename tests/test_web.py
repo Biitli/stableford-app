@@ -97,3 +97,27 @@ def test_member_import(client, tmp_path):
     assert ms["Beat Bieler"]["hcp"] == 13.8
     assert ms["Beat Bieler"]["groups"] == ["Pinseekers", "C-Club"]
     assert ms["Plus Spieler"]["hcp"] == -1.2
+
+
+def test_gross_views(client):
+    client.post("/mitglieder", data={"name": "Beat Bieler", "hcp": "18", "groups": ["C-Club"]})
+    client.post("/plaetze", data=course_form())
+    c = main.repo.courses()[0]
+    r = client.post("/runden", data={"group": "C-Club", "date": "2026-05-01", "course_tee": f"{c['id']}|Gelb Herren"})
+    rid = r.url.path.rsplit("/", 1)[1]
+    form = {"count": "1", "replace": "", "member0": main.repo.members()[0]["id"], "hcp0": "18", "tee0": "Gelb Herren"}
+    form.update({f"s0_{h}": str(p) for h, p in enumerate(PARS)})
+    r = client.post(f"/runden/{rid}/spieler", data=form)
+    assert "<h2>Brutto</h2>" in r.text and "*Brutto*" in r.text
+    r = client.get("/jahr/C-Club/2026?brutto=1")
+    assert "<b>36</b>" in r.text
+    assert client.get("/jahr/C-Club/2026/pdf?brutto=1&streich=1").status_code == 200
+
+
+def test_course_from_photo(client, monkeypatch):
+    found = {"name": "Wylihof", "notes": "", "tees": [],
+             "holes": [{"par": p, "si": s} for p, s in zip(PARS, SIS)]}
+    monkeypatch.setattr(ai, "read_course_card", lambda img, mt: found)
+    r = client.post("/plaetze/foto", files={"photo": ("k.jpg", b"x", "image/jpeg")})
+    assert 'value="Wylihof"' in r.text and "Course Rating und Slope stehen nicht" in r.text
+    assert 'name="si3" value="1"' in r.text

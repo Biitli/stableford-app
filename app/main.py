@@ -181,9 +181,29 @@ def search_course(request: Request, query: str = Form(...)):
                       "tees": found["tees"] or course["tees"], "source": found["source"]}
             info = f"Gefunden (Quelle: {found['source']}). Bitte alle Werte prüfen, bevor du speicherst."
         else:
-            info = "Keine verlässlichen Daten gefunden. Bitte von der Scorekarte abtippen."
+            info = "Keine verlässlichen Daten gefunden. Lade unten ein Foto der Scorekarte hoch oder tippe die Werte ab."
     except Exception as e:  # noqa: BLE001 - Fehler dem Benutzer zeigen
         info = f"Suche nicht möglich ({e}). Bitte die Werte von Hand eingeben."
+    return render(request, "course_form.html", course=course, info=info)
+
+
+@app.post("/plaetze/foto", response_class=HTMLResponse)
+async def course_from_photo(request: Request, photo: UploadFile = File(...)):
+    course = blank_course()
+    try:
+        found = ai.read_course_card(await photo.read(), photo.content_type or "image/jpeg")
+    except Exception as e:  # noqa: BLE001
+        return render(request, "course_form.html", course=course,
+                      info=f"Foto konnte nicht gelesen werden ({e}). Bitte die Werte von Hand eingeben.")
+    if len(found["holes"]) not in (9, 18):
+        return render(request, "course_form.html", course=course,
+                      info=f"Auf dem Foto wurden {len(found['holes'])} Löcher erkannt. Bitte von Hand ergänzen.")
+    course = {"name": found["name"], "holes": found["holes"], "tees": found["tees"] or course["tees"]}
+    info = "Par und Stroke Index vom Foto übernommen. Bitte mit der Karte vergleichen."
+    if not found["tees"]:
+        info += " Course Rating und Slope stehen nicht auf der Karte, bitte ergänzen (z.B. von der Clubwebsite)."
+    if found.get("notes"):
+        info += " Hinweis: " + found["notes"]
     return render(request, "course_form.html", course=course, info=info)
 
 
@@ -380,27 +400,29 @@ def round_pdf(rid: str):
 
 
 # Jahreswertung
-def season_data(group: str, year: int, drop: bool):
+def season_data(group: str, year: int, drop: bool, gross: bool):
     rounds = repo.rounds(group=group, year=year)
     courses = {c["id"]: c for c in repo.courses()}
     rounds = [r for r in rounds if r["players"] and r["course_id"] in courses]
-    rows = season_ranking(rounds, courses, drop_worst=drop,
+    rows = season_ranking(rounds, courses, drop_worst=drop, gross=gross,
                           missed_counts_as_zero=repo.settings()["missed_round_counts_as_zero"])
     return rounds, courses, rows
 
 
 @app.get("/jahr/{group}/{year}", response_class=HTMLResponse)
-def season(request: Request, group: str, year: int, streich: int = 0):
-    rounds, courses, rows = season_data(group, year, bool(streich))
+def season(request: Request, group: str, year: int, streich: int = 0, brutto: int = 0):
+    drop, gross = bool(streich), bool(brutto)
+    rounds, courses, rows = season_data(group, year, drop, gross)
     return render(request, "season.html", group=group, year=year, rounds=rounds, courses=courses, rows=rows,
-                  drop=bool(streich), share_text=pdf.season_text(group, year, rows, bool(streich)))
+                  drop=drop, gross=gross, share_text=pdf.season_text(group, year, rows, drop, gross))
 
 
 @app.get("/jahr/{group}/{year}/pdf")
-def season_pdf(group: str, year: int, streich: int = 0):
-    rounds, _, rows = season_data(group, year, bool(streich))
-    data = pdf.season_pdf(group, year, rounds, rows, bool(streich))
-    fname = f"Jahreswertung_{year}{'_Streichresultat' if streich else ''}.pdf"
+def season_pdf(group: str, year: int, streich: int = 0, brutto: int = 0):
+    drop, gross = bool(streich), bool(brutto)
+    rounds, _, rows = season_data(group, year, drop, gross)
+    data = pdf.season_pdf(group, year, rounds, rows, drop, gross)
+    fname = f"Jahreswertung_{year}_{'Brutto' if gross else 'Netto'}{'_Streichresultat' if drop else ''}.pdf"
     repo.save_pdf(group, fname, data)
     return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{fname}"'})
 

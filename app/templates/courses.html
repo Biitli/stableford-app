@@ -8,6 +8,10 @@
     <button>Suchen</button>
   </form>
   <p class="muted">Die Suche dauert etwa eine Minute. Danach prüfst du die Werte in der Eingabemaske.</p>
+  <form method="post" action="/plaetze/foto" enctype="multipart/form-data" class="row" onsubmit="this.querySelector('button').textContent='Wird gelesen …'">
+    <div><label>Par und Stroke Index vom Foto der Scorekarte</label><input type="file" name="photo" accept="image/*" required></div>
+    <button>Foto auswerten</button>
+  </form>
   {% endif %}
   <a class="btn sec" href="/plaetze/neu">Von Hand erfassen (18 Loch)</a>
   <a class="btn sec" href="/plaetze/neu?loecher=9">9 Loch</a>

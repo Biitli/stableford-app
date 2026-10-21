@@ -80,8 +80,8 @@ class SeasonRow:
 
 
 def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: bool = False,
-                   missed_counts_as_zero: bool = True) -> list[SeasonRow]:
-    """Summe der Nettopunkte über alle Runden.
+                   missed_counts_as_zero: bool = True, gross: bool = False) -> list[SeasonRow]:
+    """Summe der Stableford-Punkte (netto oder brutto) über alle Runden.
 
     drop_worst: das schlechteste Resultat wird gestrichen (nur wenn mind. 2 Runden gewertet).
     missed_counts_as_zero: eine verpasste Runde zählt als 0 Punkte und ist damit
@@ -96,7 +96,7 @@ def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: boo
             if not sr:
                 sr = SeasonRow(0, row.name, key, [None] * n, [None] * n, 0, 0, 0)
                 players[key] = sr
-            sr.results[i] = row.net
+            sr.results[i] = row.gross if gross else row.net
             sr.gross_results[i] = row.gross
 
     for sr in players.values():

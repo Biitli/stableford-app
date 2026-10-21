@@ -18,6 +18,7 @@
 </div>
 
 {% if rows %}
+<h2>Netto</h2>
 <div class="card scroll">
 <table>
   <tr><th class="num">Rang</th><th>Name</th><th class="num">HCP</th><th class="num">Spiel-HCP</th><th class="num">Netto</th><th class="num">Brutto</th><th class="num">Schläge</th></tr>
@@ -26,6 +27,18 @@
     <td class="num">{{ r.rank }}</td><td>{{ r.name }}</td><td class="num">{{ "%.1f"|format(r.hcp_index) }}</td>
     <td class="num">{{ r.playing_hcp }}</td><td class="num"><b>{{ r.net }}</b></td><td class="num">{{ r.gross }}</td>
     <td class="num">{{ r.strokes or "–" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+<h2>Brutto</h2>
+<div class="card scroll">
+<table>
+  <tr><th class="num">Rang</th><th>Name</th><th class="num">Brutto</th><th class="num">Schläge</th><th class="num">Netto</th></tr>
+  {% for r in rows|sort(attribute="gross_rank") %}
+  <tr>
+    <td class="num">{{ r.gross_rank }}</td><td>{{ r.name }}</td><td class="num"><b>{{ r.gross }}</b></td>
+    <td class="num">{{ r.strokes or "–" }}</td><td class="num">{{ r.net }}</td>
   </tr>
   {% endfor %}
 </table>

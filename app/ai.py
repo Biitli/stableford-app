@@ -138,3 +138,42 @@ def lookup_course(query: str) -> dict:
             return _json_text(resp)
         messages.append({"role": "assistant", "content": resp.content})
     raise RuntimeError("Die Suche hat zu lange gedauert.")
+
+
+CARD_COURSE_PROMPT = """Das ist eine fotografierte Golf-Scorekarte (Schweiz).
+Lies die Platzdaten ab, nicht die Schläge der Spieler:
+- Name des Golfplatzes (oder Clubs)
+- Par und Stroke Index (oft "Hcp", "HCP" oder "Vorgabe" genannt) für jedes Loch in Lochreihenfolge
+- falls aufgedruckt: Course Rating (CR) und Slope je Abschlag, mit Abschlagfarbe und Herren/Damen
+Gibt es getrennte Par- oder Hcp-Zeilen für Herren und Damen, nimm die Herren-Werte.
+Wenn CR oder Slope nicht auf der Karte stehen, lass die Liste tees leer.
+Unsicherheiten kurz auf Deutsch in notes."""
+
+CARD_COURSE_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["name", "holes", "tees", "notes"],
+    "properties": {
+        "name": {"type": "string"},
+        "notes": {"type": "string"},
+        "holes": COURSE_SCHEMA["properties"]["holes"],
+        "tees": COURSE_SCHEMA["properties"]["tees"],
+    },
+}
+
+
+def read_course_card(image: bytes, media_type: str) -> dict:
+    """Liest Par, Stroke Index und (falls aufgedruckt) CR/Slope von einer Scorekarte."""
+    data = base64.standard_b64encode(image).decode()
+    resp = _client().beta.messages.create(
+        model=MODEL,
+        max_tokens=16000,
+        betas=BETAS,
+        fallbacks="default",
+        output_config={"effort": "medium", "format": {"type": "json_schema", "schema": CARD_COURSE_SCHEMA}},
+        messages=[{"role": "user", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": data}},
+            {"type": "text", "text": CARD_COURSE_PROMPT},
+        ]}],
+    )
+    return _json_text(resp)

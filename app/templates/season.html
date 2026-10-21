@@ -1,9 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Jahreswertung {{ year }} – {{ group }}</h1>
+{% set q = "?streich=" ~ (1 if drop else 0) ~ "&brutto=" ~ (1 if gross else 0) %}
 <div class="noprint">
-  <a class="btn {{ 'sec' if drop else '' }}" href="?streich=0">Alle Resultate</a>
-  <a class="btn {{ '' if drop else 'sec' }}" href="?streich=1">Mit Streichresultat</a>
+  <a class="btn {{ 'sec' if gross else '' }}" href="?streich={{ 1 if drop else 0 }}&brutto=0">Netto</a>
+  <a class="btn {{ '' if gross else 'sec' }}" href="?streich={{ 1 if drop else 0 }}&brutto=1">Brutto</a>
+  &nbsp;
+  <a class="btn {{ 'sec' if drop else '' }}" href="?streich=0&brutto={{ 1 if gross else 0 }}">Alle Resultate</a>
+  <a class="btn {{ '' if drop else 'sec' }}" href="?streich=1&brutto={{ 1 if gross else 0 }}">Mit Streichresultat</a>
 </div>
 {% if not rows %}<p class="muted">Noch keine ausgewerteten Runden in {{ year }}.</p>{% else %}
 <div class="card scroll">
@@ -17,11 +21,11 @@
     <td class="num"><b>{{ s.total }}</b></td><td class="num">{{ s.played }}</td></tr>
   {% endfor %}
 </table>
-<p class="muted">Nettopunkte Stableford.{% if drop %} Durchgestrichen = Streichresultat{% if settings.missed_round_counts_as_zero %} (eine verpasste Runde zählt als 0 und wird zuerst gestrichen){% endif %}.{% endif %}</p>
+<p class="muted">{{ "Brutto" if gross else "Netto" }}punkte Stableford.{% if drop %} Durchgestrichen = Streichresultat{% if settings.missed_round_counts_as_zero %} (eine verpasste Runde zählt als 0 und wird zuerst gestrichen){% endif %}.{% endif %}</p>
 </div>
 <div class="noprint">
-  <a class="btn" href="/jahr/{{ group|urlencode }}/{{ year }}/pdf?streich={{ 1 if drop else 0 }}" target="_blank">PDF / Drucken</a>
-  <button class="wa" onclick="shareRanking('/jahr/{{ group|urlencode }}/{{ year }}/pdf?streich={{ 1 if drop else 0 }}', 'Jahreswertung_{{ year }}.pdf', {{ share_text|tojson|forceescape }})">Per WhatsApp teilen</button>
+  <a class="btn" href="/jahr/{{ group|urlencode }}/{{ year }}/pdf{{ q }}" target="_blank">PDF / Drucken</a>
+  <button class="wa" onclick="shareRanking('/jahr/{{ group|urlencode }}/{{ year }}/pdf{{ q }}', 'Jahreswertung_{{ year }}.pdf', {{ share_text|tojson|forceescape }})">Per WhatsApp teilen</button>
   <button class="sec" onclick="shareText({{ share_text|tojson|forceescape }})">Als Text teilen</button>
 </div>
 {% endif %}
