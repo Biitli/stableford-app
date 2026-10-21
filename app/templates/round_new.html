@@ -8,13 +8,11 @@
   <label>Gruppe</label>
   <select name="group">{% for g in settings.groups %}<option {% if g == group %}selected{% endif %}>{{ g }}</option>{% endfor %}</select>
   <label>Datum</label><input type="date" name="date" value="{{ today }}" required>
-  <label>Platz und Abschlag</label>
-  <select name="course_tee" required>
-    {% for c in courses %}<optgroup label="{{ c.name }}">
-      {% for t in c.tees %}<option value="{{ c.id }}|{{ t.name }}">{{ c.name }} – {{ t.name }}</option>{% endfor %}
-    </optgroup>{% endfor %}
+  <label>Platz</label>
+  <select name="course" required>
+    {% for c in courses %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
   </select>
-  <p class="muted">Platz fehlt? <a href="/plaetze">Hier erfassen</a>.</p>
+  <p class="muted">Die Abschlagfarbe wählst du beim Prüfen jeder Karte. Platz fehlt? <a href="/plaetze">Hier erfassen</a>.</p>
   <label>Titel (optional)</label><input name="title" size="30" placeholder="z.B. Frühlingsturnier">
   <div><button>Runde anlegen</button></div>
 </form>

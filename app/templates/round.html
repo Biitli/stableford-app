@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>{{ rnd.title or "Tagesrangliste" }} – {{ rnd.group }}</h1>
-<p class="muted">{{ rnd.date|datum }} · {{ course.name }} · Abschlag {{ rnd.tee }}{% if rnd.allowance != 1 %} · {{ (rnd.allowance*100)|round|int }} % HCP{% endif %}</p>
+<p class="muted">{{ rnd.date|datum }} · {{ course.name }}{% if rnd.allowance != 1 %} · {{ (rnd.allowance*100)|round|int }} % HCP{% endif %}</p>
 
 <div class="card noprint">
   <h2>Scorekarten hinzufügen</h2>
@@ -57,7 +57,7 @@
   <table>
   {% for p in rnd.players %}
     <tr>
-      <td>{{ p.name }}{% if not p.member_id %} <span class="muted">(Gast)</span>{% endif %}</td>
+      <td>{{ p.name }}{% if not p.member_id %} <span class="muted">(Gast)</span>{% endif %}<br><span class="muted"><i class="dot" style="background:{{ (p.tee or rnd.tee)|teecolor }}"></i>{{ p.tee or rnd.tee }}</span></td>
       <td class="muted">{{ p.scores|select|list|length }}/{{ p.scores|length }} Löcher</td>
       <td style="white-space:nowrap">
         <a class="btn sec" href="/runden/{{ rnd.id }}/karte/{{ loop.index0 }}">Karte</a>

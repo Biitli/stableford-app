@@ -24,6 +24,18 @@ app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
 templates.env.filters["datum"] = pdf.fmt_date
 
+TEE_COLORS = {"weiss": "#ffffff", "weiß": "#ffffff", "gelb": "#f2c200", "blau": "#1e63c6", "rot": "#d32f2f",
+              "schwarz": "#222222", "orange": "#f08a00", "gruen": "#2e9d48", "grün": "#2e9d48",
+              "silber": "#b8b8b8", "gold": "#c9a227"}
+
+
+def tee_color(name: str) -> str:
+    n = name.lower()
+    return next((c for k, c in TEE_COLORS.items() if k in n), "#999999")
+
+
+templates.env.filters["teecolor"] = tee_color
+
 PASSWORD = os.environ.get("APP_PASSWORD", "")
 repo = Repo(storage_from_env())
 
@@ -257,9 +269,11 @@ def new_round(request: Request, gruppe: str = ""):
 
 
 @app.post("/runden")
-def create_round(group: str = Form(...), date_: str = Form(..., alias="date"), course_tee: str = Form(...),
-                 title: str = Form("")):
-    cid, tee = course_tee.split("|", 1)
+def create_round(group: str = Form(...), date_: str = Form(..., alias="date"), course: str = Form(""),
+                 course_tee: str = Form(""), title: str = Form("")):
+    # Der Abschlag wird pro Spieler beim Prüfen der Karte gewählt; rnd["tee"] ist nur der Vorgabewert.
+    cid, _, tee = (course_tee or course).partition("|")
+    tee = tee or repo.course(cid)["tees"][0]["name"]
     r = repo.save_round({"group": group, "date": date_, "course_id": cid, "tee": tee, "title": title.strip(),
                          "allowance": repo.settings()["allowance"], "players": []})
     return back(f"/runden/{r['id']}")
@@ -281,23 +295,17 @@ def show_round(request: Request, rid: str):
                   share_text=pdf.day_text(rnd["group"], rnd, course, rows))
 
 
-def default_tee(rnd: dict, course: dict, member: dict | None) -> str:
-    """Damen spielen standardmässig vom ersten Abschlag mit 'Damen' im Namen."""
-    if member and member.get("ladies"):
-        for t in course["tees"]:
-            if "dame" in t["name"].lower():
-                return t["name"]
-    return rnd["tee"]
+def review_player(p: dict, rnd: dict) -> dict:
+    """Ergänzt einen erkannten Spieler mit dem passenden Mitglied und dessen HCP.
 
-
-def review_player(p: dict, rnd: dict, course: dict) -> dict:
-    """Ergänzt einen erkannten Spieler mit dem passenden Mitglied und dessen HCP."""
+    Der Abschlag bleibt leer und muss beim Prüfen gewählt werden.
+    """
     m, score = repo.match_member(p["name"], rnd["group"])
     if m and score >= 0.6:
         return {**p, "member_id": m["id"], "name": m["name"], "hcp_index": m["hcp"], "match": score,
-                "read_name": p["name"], "tee": default_tee(rnd, course, m)}
+                "read_name": p["name"], "tee": None}
     return {**p, "member_id": "", "hcp_index": p.get("hcp_on_card") or "", "match": score, "read_name": p["name"],
-            "tee": rnd["tee"]}
+            "tee": None}
 
 
 @app.post("/runden/{rid}/foto", response_class=HTMLResponse)
@@ -314,7 +322,7 @@ async def upload_photo(request: Request, rid: str, photos: list[UploadFile] = Fi
         except Exception as e:  # noqa: BLE001
             notes.append(f"{ph.filename}: konnte nicht gelesen werden ({e})")
             continue
-        players += [review_player(p, rnd, course) for p in res["players"]]
+        players += [review_player(p, rnd) for p in res["players"]]
         if res.get("notes"):
             notes.append(res["notes"])
     return render(request, "review.html", rnd=rnd, course=course, players=players, notes=notes,
@@ -328,7 +336,7 @@ def manual_player(request: Request, rid: str, idx: int | None = None):
         players = [{**rnd["players"][idx], "match": 1}]
     else:
         players = [{"name": "", "member_id": "", "hcp_index": "", "scores": [None] * len(course["holes"]),
-                    "match": 1, "tee": rnd["tee"]}]
+                    "match": 1, "tee": None}]
     return render(request, "review.html", rnd=rnd, course=course, players=players, notes=[],
                   members=repo.members(), replace=idx)
 

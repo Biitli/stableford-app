@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -121,3 +123,21 @@ def test_course_from_photo(client, monkeypatch):
     r = client.post("/plaetze/foto", files={"photo": ("k.jpg", b"x", "image/jpeg")})
     assert 'value="Wylihof"' in r.text and "Course Rating und Slope stehen nicht" in r.text
     assert 'name="si3" value="1"' in r.text
+
+
+def test_tee_must_be_chosen(client, monkeypatch):
+    client.post("/mitglieder", data={"name": "Beat Bieler", "hcp": "18", "groups": ["C-Club"]})
+    client.post("/plaetze", data=course_form())
+    c = main.repo.courses()[0]
+    r = client.post("/runden", data={"group": "C-Club", "date": "2026-05-01", "course": c["id"]})
+    rid = r.url.path.rsplit("/", 1)[1]
+    monkeypatch.setattr(ai, "read_scorecard", lambda *a: {"notes": "", "players": [
+        {"name": "Bieler", "hcp_on_card": None, "scores": PARS}, {"name": "Gast X", "hcp_on_card": 20, "scores": PARS}]})
+    r = client.post(f"/runden/{rid}/foto", files={"photos": ("k.jpg", b"x", "image/jpeg")})
+    radios = re.findall(r'<input type="radio" name="tee0"[^>]*>', r.text)
+    assert len(radios) == 2 and not any("checked" in x for x in radios)  # nichts vorausgewählt
+    assert "Abschlag für alle Spieler setzen" in r.text
+    form = {"count": "1", "replace": "", "member0": main.repo.members()[0]["id"], "hcp0": "18", "tee0": "Rot Damen"}
+    form.update({f"s0_{h}": str(p) for h, p in enumerate(PARS)})
+    client.post(f"/runden/{rid}/spieler", data=form)
+    assert main.repo.round(rid)["players"][0]["tee"] == "Rot Damen"

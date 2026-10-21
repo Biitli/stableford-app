@@ -24,7 +24,6 @@
       <label style="display:inline;font-weight:normal;margin-right:12px">
         <input type="checkbox" name="groups" value="{{ g }}" {% if edit and g in edit.groups %}checked{% endif %}> {{ g }}</label>
     {% endfor %}
-    <label style="font-weight:normal"><input type="checkbox" name="ladies" value="1" {% if edit and edit.ladies %}checked{% endif %}> spielt von den Damen-Abschlägen</label>
     <label>Andere Schreibweisen auf der Scorekarte (mit Komma getrennt)</label>
     <input name="aliases" size="40" value="{{ (edit.aliases or [])|join(', ') if edit else '' }}" placeholder="z.B. Beat B., Biitli">
     <div><button>Speichern</button>{% if edit %}<a class="btn sec" href="/mitglieder">Abbrechen</a>{% endif %}</div>

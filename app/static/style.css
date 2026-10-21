@@ -32,3 +32,9 @@ label { display:block; margin:8px 0 3px; font-weight:600; font-size:.9em; }
 label.btn { display:inline-block; font-weight:normal; font-size:1em; margin:3px 2px; }
 label.btn.busy { opacity:.5; pointer-events:none; }
 .photo-status { display:block; margin-top:6px; font-weight:600; color:var(--green); }
+.tees { display:flex; flex-wrap:wrap; gap:6px; }
+.tee input { position:absolute; opacity:0; }
+.tee span { display:inline-flex; align-items:center; gap:6px; border:2px solid var(--line); border-radius:20px; padding:6px 12px; background:#fff; font-weight:normal; cursor:pointer; }
+.tee input:checked + span { border-color:var(--green); background:#e6f2e8; font-weight:700; }
+.tee input:focus-visible + span { outline:2px solid var(--green); }
+.dot { display:inline-block; width:14px; height:14px; border-radius:50%; border:1px solid #888; vertical-align:middle; margin-right:4px; }

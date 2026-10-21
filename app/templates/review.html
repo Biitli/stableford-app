@@ -5,6 +5,13 @@
 {% for n in notes %}<div class="info">{{ n }}</div>{% endfor %}
 {% if not players %}<div class="info">Auf den Fotos wurden keine Spieler erkannt. <a href="/runden/{{ rnd.id }}">Zurück</a></div>{% endif %}
 <form method="post" action="/runden/{{ rnd.id }}/spieler">
+{% if players|length > 1 %}
+<div class="card noprint">
+  <label>Abschlag für alle Spieler setzen</label>
+  <div class="tees">{% for t in course.tees %}<button type="button" class="sec" onclick="document.querySelectorAll('input[type=radio][value=&quot;{{ t.name }}&quot;]').forEach(r => r.checked = true)"><i class="dot" style="background:{{ t.name|teecolor }}"></i>{{ t.name }}</button>{% endfor %}</div>
+  <p class="muted">Danach einzelne Spieler (z.B. Damen) unten anpassen.</p>
+</div>
+{% endif %}
 <input type="hidden" name="count" value="{{ players|length }}">
 <input type="hidden" name="replace" value="{{ '' if replace is none else replace }}">
 {% for p in players %}{% set i = loop.index0 %}
@@ -17,9 +24,12 @@
         {% for m in members %}<option value="{{ m.id }}" data-hcp="{{ m.hcp }}" {% if m.id == p.member_id %}selected{% endif %}>{{ m.name }}{% if rnd.group not in m.groups %} ({{ m.groups|join(", ") or "keine Gruppe" }}){% endif %}</option>{% endfor %}
       </select></div>
     <div><label>Gastname</label><input name="name{{ i }}" value="{{ '' if p.member_id else p.name }}" size="16"></div>
-    <div><label>Abschlag</label><select name="tee{{ i }}">{% for t in course.tees %}<option {% if t.name == (p.tee or rnd.tee) %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
     <div><label>HCP-Index</label><input name="hcp{{ i }}" value="{{ p.hcp_index }}" inputmode="decimal" size="5"></div>
     {% if replace is none %}<div><label style="font-weight:normal"><input type="checkbox" name="skip{{ i }}"> nicht übernehmen</label></div>{% endif %}
+  </div>
+  <label>Abschlag</label>
+  <div class="tees">
+    {% for t in course.tees %}<label class="tee"><input type="radio" name="tee{{ i }}" value="{{ t.name }}" required {% if t.name == p.tee %}checked{% endif %}><span><i class="dot" style="background:{{ t.name|teecolor }}"></i>{{ t.name }}</span></label>{% endfor %}
   </div>
   <table class="grid" style="margin-top:8px">
     <tr><th>Loch</th>{% for h in course.holes %}<th>{{ loop.index }}</th>{% endfor %}</tr>
