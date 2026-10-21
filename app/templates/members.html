@@ -1,6 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Mitglieder</h1>
+{% if info %}<div class="info">{{ info }}</div>{% endif %}
+<div class="card">
+  <h2>Aus Excel importieren</h2>
+  <form method="post" action="/mitglieder/import" enctype="multipart/form-data" class="row">
+    <div><label>Datei (.xlsx oder .csv)</label><input type="file" name="file" accept=".xlsx,.csv" required></div>
+    <div><label>Gruppe</label><select name="group">{% for g in settings.groups %}<option>{{ g }}</option>{% endfor %}</select></div>
+    <button>Importieren</button>
+  </form>
+  <p class="muted">Eine Zeile pro Person mit Name und Handicap. Bestehende Mitglieder (gleicher Name) erhalten das neue Handicap.</p>
+</div>
 <div class="card">
   <h2>{{ "Mitglied bearbeiten" if edit else "Neues Mitglied" }}</h2>
   <form method="post" action="/mitglieder">

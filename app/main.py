@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import ai, pdf
+from . import ai, importer, pdf
 from .rankings import daily_ranking, score_player, season_ranking, tee_of
 from .repo import Repo, slug
 from .storage import dropbox_token_set, storage_from_env
@@ -107,7 +107,8 @@ def home(request: Request):
 # Mitglieder
 @app.get("/mitglieder", response_class=HTMLResponse)
 def members(request: Request, edit: str | None = None):
-    return render(request, "members.html", members=repo.members(), edit=repo.member(edit) if edit else None)
+    return render(request, "members.html", members=repo.members(), edit=repo.member(edit) if edit else None,
+                  info=None)
 
 
 @app.post("/mitglieder")
@@ -120,6 +121,31 @@ def save_member(id: str = Form(""), name: str = Form(...), hcp: str = Form(...),
         m["id"] = id
     repo.save_member(m)
     return back("/mitglieder")
+
+
+@app.post("/mitglieder/import", response_class=HTMLResponse)
+async def import_members(request: Request, group: str = Form(...), file: UploadFile = File(...)):
+    try:
+        rows = importer.read_file(file.filename or "", await file.read())
+    except Exception as e:  # noqa: BLE001
+        rows, error = [], f"Datei konnte nicht gelesen werden ({e})."
+    else:
+        error = None if rows else "In der Datei wurden keine Namen mit Handicap gefunden."
+    by_name = {slug(m["name"]): m for m in repo.members()}
+    added = updated = 0
+    for name, hcp in rows:
+        m = by_name.get(slug(name))
+        if m:
+            m["hcp"] = hcp
+            if group not in m.get("groups", []):
+                m.setdefault("groups", []).append(group)
+            updated += 1
+        else:
+            m = {"name": name, "hcp": hcp, "groups": [group], "aliases": []}
+            added += 1
+        by_name[slug(name)] = repo.save_member(m)
+    info = error or f"{added} neu erfasst, {updated} aktualisiert ({group})."
+    return render(request, "members.html", members=repo.members(), edit=None, info=info)
 
 
 @app.post("/mitglieder/{mid}/loeschen")

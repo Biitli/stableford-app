@@ -75,3 +75,25 @@ def test_course_validation(client):
     f["si1"] = "5"  # doppelter SI
     r = client.post("/plaetze", data=f)
     assert "genau einmal" in r.text
+
+
+def test_member_import(client, tmp_path):
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["Handicap C-Club", None])
+    ws.append([None, None])
+    ws.append(["Hans Schlatter", 16.2])
+    ws.append(["Beat Bieler", 13.8])
+    ws.append(["Plus Spieler", "+1,2"])
+    p = tmp_path / "hcp.xlsx"
+    wb.save(p)
+    client.post("/mitglieder", data={"name": "Beat Bieler", "hcp": "18", "groups": ["Pinseekers"]})
+    r = client.post("/mitglieder/import", data={"group": "C-Club"},
+                    files={"file": ("hcp.xlsx", p.read_bytes(), "application/octet-stream")})
+    assert "2 neu erfasst, 1 aktualisiert" in r.text
+    ms = {m["name"]: m for m in main.repo.members()}
+    assert ms["Beat Bieler"]["hcp"] == 13.8
+    assert ms["Beat Bieler"]["groups"] == ["Pinseekers", "C-Club"]
+    assert ms["Plus Spieler"]["hcp"] == -1.2
