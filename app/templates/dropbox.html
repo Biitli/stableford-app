@@ -4,19 +4,20 @@
 <div class="card">
 {% if connected %}
   <p>Dropbox ist verbunden. Alle Daten und Ranglisten werden dort gespeichert.</p>
-  {% if test %}<p class="{{ 'warn' if 'fehl' in test else 'muted' }}">{{ test }}</p>{% endif %}
+  {% if test %}<p class="muted">✓ {{ test }}</p>{% endif %}
 {% elif not ready %}
   <p>Zuerst bei Render unter <i>Environment</i> <code>DROPBOX_APP_KEY</code> und <code>DROPBOX_APP_SECRET</code> eintragen und neu starten.</p>
 {% elif token %}
-  <p><b>Geschafft.</b> Kopiere diesen Wert und trage ihn bei Render unter <i>Environment</i> als <code>DROPBOX_REFRESH_TOKEN</code> ein:</p>
+  <p><b>3. Geschafft.</b> Kopiere diesen langen Wert und trage ihn bei Render unter <i>Environment</i> als <code>DROPBOX_REFRESH_TOKEN</code> ein:</p>
   <p><input id="tok" value="{{ token }}" readonly style="width:100%" onclick="this.select()"></p>
   <button onclick="navigator.clipboard.writeText(document.getElementById('tok').value)">Kopieren</button>
   <p class="muted">Nach dem Speichern startet Render die App neu, danach ist Dropbox verbunden.</p>
 {% else %}
-  {% if error %}<p class="warn">{{ error }}</p>{% endif %}
+  {% if error %}<p class="warn">{{ error }}</p>
+  <p>Bitte die Verbindung neu einrichten:</p>{% endif %}
   <p>1. <a class="btn" href="{{ url }}" target="_blank">Bei Dropbox freigeben</a> und dort auf <b>Zulassen</b> klicken.</p>
   <form method="post" action="/dropbox">
-    <label>2. Den angezeigten Code hier einfügen</label>
+    <label>2. Den Code, den Dropbox anzeigt, hier einfügen (nicht bei Render!)</label>
     <input name="code" required size="40">
     <button>Weiter</button>
   </form>

@@ -16,7 +16,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from . import ai, importer, pdf
 from .rankings import daily_ranking, score_player, season_ranking, tee_of
-from .repo import Repo, slug
+from .repo import DEFAULT_SETTINGS, Repo, slug
 from .storage import LocalStorage, dropbox_token_set, storage_from_env
 
 BASE = Path(__file__).parent
@@ -60,8 +60,15 @@ app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SECRET_KEY", PA
                    max_age=60 * 60 * 24 * 180, https_only=bool(PASSWORD))
 
 
+def safe_settings() -> dict:
+    try:
+        return repo.settings()
+    except Exception:  # noqa: BLE001 - z.B. Dropbox nicht erreichbar; Seite trotzdem anzeigen
+        return dict(DEFAULT_SETTINGS)
+
+
 def render(request: Request, name: str, **ctx) -> HTMLResponse:
-    ctx.setdefault("settings", repo.settings())
+    ctx.setdefault("settings", safe_settings())
     ctx.setdefault("ai_available", ai.available())
     ctx.setdefault("dropbox_connected", not isinstance(repo.st, LocalStorage))
     ctx.setdefault("storage_local", isinstance(repo.st, LocalStorage) and bool(PASSWORD))
@@ -85,6 +92,27 @@ def to_score(v: str | None) -> int | None:
         return n if n > 0 else None
     except (TypeError, ValueError):
         return None
+
+
+@app.exception_handler(Exception)
+async def show_error(request: Request, exc: Exception):
+    """Statt "Internal Server Error" eine verständliche Meldung zeigen."""
+    import html
+    import logging
+
+    logging.getLogger("stableford").exception("Fehler bei %s", request.url.path)
+    is_dropbox = type(exc).__module__.startswith("dropbox")
+    hint = ("Die Verbindung zu Dropbox funktioniert nicht. Meistens ist der Wert bei "
+            "<code>DROPBOX_REFRESH_TOKEN</code> falsch (z.B. der kurze Freigabe-Code statt des langen Tokens). "
+            '<a href="/dropbox">Dropbox neu verbinden</a>') if is_dropbox else \
+        'Bitte einen Screenshot dieser Seite schicken. <a href="/">Zur Startseite</a>'
+    body = (f'<!doctype html><html lang="de-CH"><head><meta charset="utf-8">'
+            f'<meta name="viewport" content="width=device-width, initial-scale=1">'
+            f'<link rel="stylesheet" href="/static/style.css"><title>Fehler</title></head><body><main>'
+            f'<h1>Da ist etwas schiefgelaufen</h1><div class="info">{hint}</div>'
+            f'<p class="muted">Technische Meldung ({html.escape(request.url.path)}): '
+            f'{html.escape(type(exc).__name__)}: {html.escape(str(exc))[:500]}</p></main></body></html>')
+    return HTMLResponse(body, status_code=500)
 
 
 @app.get("/healthz")
@@ -512,8 +540,9 @@ def dropbox_setup(request: Request):
             test = "Verbindung getestet: Schreiben und Lesen in Dropbox funktioniert." if ok else "Test fehlgeschlagen."
         except Exception as e:  # noqa: BLE001
             test = f"Dropbox-Test fehlgeschlagen: {e}"
+    ok = test is not None and test.startswith("Verbindung getestet")
     return render(request, "dropbox.html", ready=ready, url=_dropbox_flow().start() if ready else None,
-                  connected=not isinstance(repo.st, LocalStorage), token=None, error=None, test=test)
+                  connected=ok, token=None, error=test if test and not ok else None, test=test if ok else None)
 
 
 @app.post("/dropbox", response_class=HTMLResponse)

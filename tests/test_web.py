@@ -158,3 +158,20 @@ def test_hcp_list_edit_and_export(client):
     assert r.headers["content-type"].startswith("application/vnd.openxml")
     client.post(f"/mitglieder/{ms['Pin Seeker']['id']}/loeschen", data={"gruppe": "Pinseekers"})
     assert len(main.repo.members()) == 1
+
+
+def test_broken_dropbox_shows_explanation(client):
+    from dropbox.exceptions import AuthError
+
+    class Broken(LocalStorage):
+        def read(self, path):
+            raise AuthError("req", "invalid_grant")
+
+        def list(self, folder):
+            raise AuthError("req", "invalid_grant")
+
+    import tempfile
+    main.set_repo(Repo(Broken(tempfile.mkdtemp())))
+    c = TestClient(main.app, raise_server_exceptions=False)
+    r = c.get("/")
+    assert r.status_code == 500 and "Dropbox neu verbinden" in r.text
