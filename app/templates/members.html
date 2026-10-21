@@ -9,6 +9,8 @@
 
 <form method="post" action="/mitglieder/hcp" class="card scroll">
   <input type="hidden" name="gruppe" value="{{ group }}">
+  {# Standardknopf für die Eingabetaste: speichert, statt die erste Zeile zu löschen #}
+  <button class="vh" tabindex="-1" aria-hidden="true">Speichern</button>
   <h2>Handicap-Liste {{ group }}</h2>
   <table class="hcplist">
     <tr><th>Name</th><th class="num">HCP-Index</th><th class="num">geändert</th><th class="noprint"></th></tr>
