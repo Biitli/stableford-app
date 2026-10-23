@@ -13,6 +13,8 @@ DEFAULT_SETTINGS = {
     "groups": ["C-Club", "Pinseekers"],
     "allowance": 1.0,  # Anteil des Course Handicaps (1.0 = 100 %, 0.95 = 95 %)
     "missed_round_counts_as_zero": True,
+    # Zusatzwertungen innerhalb einer Gruppe; pro Runde wählbar ("Zählt zum C-Club Classic")
+    "series": {"C-Club Classic": "C-Club"},
 }
 
 

@@ -175,3 +175,35 @@ def test_broken_dropbox_shows_explanation(client):
     c = TestClient(main.app, raise_server_exceptions=False)
     r = c.get("/")
     assert r.status_code == 500 and "Dropbox neu verbinden" in r.text
+
+
+def test_classic_series(client):
+    client.post("/mitglieder", data={"name": "Beat Bieler", "hcp": "18", "groups": ["C-Club"]})
+    client.post("/plaetze", data=course_form())
+    c = main.repo.courses()[0]
+    mid = main.repo.members()[0]["id"]
+    rids = []
+    for d, classic in [("2026-05-01", True), ("2026-06-01", False), ("2026-07-01", True)]:
+        data = {"group": "C-Club", "date": d, "course": c["id"]}
+        if classic:
+            data["series"] = "C-Club Classic"
+        r = client.post("/runden", data=data)
+        rid = r.url.path.rsplit("/", 1)[1]
+        rids.append(rid)
+        form = {"count": "1", "replace": "", "member0": mid, "hcp0": "18", "tee0": "Gelb Herren"}
+        form.update({f"s0_{h}": str(p + (1 if d == "2026-07-01" else 0)) for h, p in enumerate(PARS)})
+        client.post(f"/runden/{rid}/spieler", data=form)
+    assert main.repo.round(rids[0])["series"] == ["C-Club Classic"]
+    assert "Zählt zum C-Club Classic" in client.get(f"/runden/{rids[1]}").text
+    r = client.get("/jahr/C-Club/2026?serie=C-Club%20Classic&streich=1")
+    # nur die zwei Classic-Runden (Spiel-HCP 20): 56 + 38 Punkte, gestrichen 38 -> Endtotal 56
+    assert r.text.count('<th class="num"><a href="/runden/') == 2
+    assert '<td class="num">94</td>' in r.text and "−38" in r.text and "<b>56</b>" in r.text
+    assert client.get("/jahr/C-Club/2026/pdf?serie=C-Club%20Classic&streich=1").status_code == 200
+    # Häkchen nachträglich setzen
+    client.post(f"/runden/{rids[1]}/serien", data={"series": "C-Club Classic"})
+    r = client.get("/jahr/C-Club/2026?serie=C-Club%20Classic")
+    assert r.text.count('<th class="num"><a href="/runden/') == 3
+    # Pinseekers haben kein Classic
+    client.post(f"/runden/{rids[1]}/serien", data={"series": "Gibt es nicht"})
+    assert main.repo.round(rids[1])["series"] == []

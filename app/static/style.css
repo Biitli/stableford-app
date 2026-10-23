@@ -43,3 +43,4 @@ details summary { cursor:pointer; }
 @media print { .hcplist input { border:0; } }
 .hcplist .btn, .hcplist button { padding:6px 10px; margin:1px; }
 .hcplist td, .hcplist th { padding:4px 3px; }
+.badge { display:inline-block; font-size:.8em; background:#fff3c4; border-radius:10px; padding:1px 7px; }

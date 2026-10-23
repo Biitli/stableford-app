@@ -90,24 +90,29 @@ def day_pdf(group: str, rnd: dict, course: dict, rows: list[DayRow]) -> bytes:
 
 
 def season_pdf(group: str, year: int, rounds: list[dict], rows: list[SeasonRow], drop_worst: bool,
-               gross: bool = False) -> bytes:
-    title = f"Jahreswertung {year} {'Brutto' if gross else 'Netto'}"
+               gross: bool = False, series: str = "") -> bytes:
+    title = f"{series or 'Jahreswertung'} {year} {'Brutto' if gross else 'Netto'}"
     if drop_worst:
         title += " (mit Streichresultat)"
     pdf = _Pdf(title, f"{group} - {len(rounds)} Runde(n)")
     n = len(rounds)
-    name_w, fixed = 44, 11 + 44 + 14 + 13
-    rw = min(14, (180 - fixed) / max(n, 1))
+    tail = ["Runden", "Total", "Streich", "Endtotal"] if drop_worst else ["Runden", "Total"]
+    tail_w = [13, 13, 13, 15] if drop_worst else [13, 14]
+    name_w = 40
+    rw = min(14, (180 - 11 - name_w - sum(tail_w)) / max(n, 1))
     font = FONT if rw >= 10 else 6.5
-    headers = ["Rang", "Name"] + [fmt_date(r["date"])[:5] for r in rounds] + ["Total", "Runden"]
-    widths = [11, name_w] + [rw] * n + [14, 13]
+    headers = ["Rang", "Name"] + [fmt_date(r["date"])[:5] for r in rounds] + tail
+    widths = [11, name_w] + [rw] * n + tail_w
     data, struck = [], set()
     for ri, r in enumerate(rows):
         if r.dropped_index is not None:
             struck.add((ri, 2 + r.dropped_index))
-        data.append([str(r.rank), r.name, *("-" if x is None else str(x) for x in r.results),
-                     str(r.total), str(r.played)])
-    pdf.table(headers, widths, data, "CL" + "C" * n + "CC", bold_cols={2 + n}, struck=struck, font=font)
+        end = [str(r.played)]
+        if drop_worst:
+            end += [str(r.raw_total), "-" if not r.dropped_value else f"-{r.dropped_value}"]
+        data.append([str(r.rank), r.name, *("-" if x is None else str(x) for x in r.results), *end, str(r.total)])
+    pdf.table(headers, widths, data, "CL" + "C" * (n + len(tail)), bold_cols={1 + n + len(tail)}, struck=struck,
+              font=font)
     note = f"{'Brutto' if gross else 'Netto'}punkte Stableford."
     if drop_worst:
         note += " Werte in Klammern sind gestrichen."
@@ -125,8 +130,9 @@ def day_text(group: str, rnd: dict, course: dict, rows: list[DayRow]) -> str:
     return "\n".join(lines)
 
 
-def season_text(group: str, year: int, rows: list[SeasonRow], drop_worst: bool, gross: bool = False) -> str:
-    head = f"*Jahreswertung {year} {group} {'Brutto' if gross else 'Netto'}*"
+def season_text(group: str, year: int, rows: list[SeasonRow], drop_worst: bool, gross: bool = False,
+                series: str = "") -> str:
+    head = f"*{series or 'Jahreswertung'} {year} {'' if series else group + ' '}{'Brutto' if gross else 'Netto'}*"
     lines = [head + (" (mit Streichresultat)" if drop_worst else ""), ""]
     lines += [f"{r.rank}. {r.name} – {r.total} P. ({r.played} Runden)" for r in rows]
     return "\n".join(lines)

@@ -6,6 +6,7 @@
   <a class="btn" href="/runden/neu?gruppe={{ g.name|urlencode }}">+ Neue Runde</a>
   {% for y in g.years %}
     <a class="btn sec" href="/jahr/{{ g.name|urlencode }}/{{ y }}">Jahreswertung {{ y }}</a>
+    {% for s in g.series %}<a class="btn sec" href="/jahr/{{ g.name|urlencode }}/{{ y }}?serie={{ s|urlencode }}&streich=1">⭐ {{ s }} {{ y }}</a>{% endfor %}
   {% endfor %}
   {% if g.rounds %}
   <table>
@@ -13,7 +14,7 @@
     {% for r in g.rounds %}
     <tr>
       <td><a href="/runden/{{ r.id }}">{{ r.date|datum }}</a></td>
-      <td>{{ r.title or (courses[r.course_id].name if r.course_id in courses else "?") }}</td>
+      <td>{{ r.title or (courses[r.course_id].name if r.course_id in courses else "?") }}{% for s in r.series or [] %} <span class="badge">⭐ {{ s }}</span>{% endfor %}</td>
       <td class="num">{{ r.players|length }}</td>
     </tr>
     {% endfor %}

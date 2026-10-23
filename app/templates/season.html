@@ -1,31 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Jahreswertung {{ year }} – {{ group }}</h1>
-{% set q = "?streich=" ~ (1 if drop else 0) ~ "&brutto=" ~ (1 if gross else 0) %}
+<h1>{% if serie %}⭐ {{ serie }} {{ year }}{% else %}Jahreswertung {{ year }} – {{ group }}{% endif %}</h1>
+{% set sq = "&serie=" ~ (serie|urlencode) if serie else "" %}
+{% set q = "?streich=" ~ (1 if drop else 0) ~ "&brutto=" ~ (1 if gross else 0) ~ sq %}
 <div class="noprint">
-  <a class="btn {{ 'sec' if gross else '' }}" href="?streich={{ 1 if drop else 0 }}&brutto=0">Netto</a>
-  <a class="btn {{ '' if gross else 'sec' }}" href="?streich={{ 1 if drop else 0 }}&brutto=1">Brutto</a>
+  <a class="btn {{ 'sec' if gross else '' }}" href="?streich={{ 1 if drop else 0 }}&brutto=0{{ sq }}">Netto</a>
+  <a class="btn {{ '' if gross else 'sec' }}" href="?streich={{ 1 if drop else 0 }}&brutto=1{{ sq }}">Brutto</a>
   &nbsp;
-  <a class="btn {{ 'sec' if drop else '' }}" href="?streich=0&brutto={{ 1 if gross else 0 }}">Alle Resultate</a>
-  <a class="btn {{ '' if drop else 'sec' }}" href="?streich=1&brutto={{ 1 if gross else 0 }}">Mit Streichresultat</a>
+  <a class="btn {{ 'sec' if drop else '' }}" href="?streich=0&brutto={{ 1 if gross else 0 }}{{ sq }}">Alle Resultate</a>
+  <a class="btn {{ '' if drop else 'sec' }}" href="?streich=1&brutto={{ 1 if gross else 0 }}{{ sq }}">Mit Streichresultat</a>
 </div>
-{% if not rows %}<p class="muted">Noch keine ausgewerteten Runden in {{ year }}.</p>{% else %}
+{% if not rows %}<p class="muted">Noch keine ausgewerteten Runden{% if serie %} mit Häkchen «{{ serie }}»{% endif %} in {{ year }}.</p>{% else %}
 <div class="card scroll">
 <table>
   <tr><th class="num">Rang</th><th>Name</th>
     {% for r in rounds %}<th class="num"><a href="/runden/{{ r.id }}">{{ (r.date|datum)[:5] }}</a></th>{% endfor %}
-    <th class="num">Total</th><th class="num">Runden</th></tr>
+    <th class="num">Runden</th>
+    {% if drop %}<th class="num">Total</th><th class="num">Streich</th><th class="num">Endtotal</th>{% else %}<th class="num">Total</th>{% endif %}</tr>
   {% for s in rows %}
   <tr><td class="num">{{ s.rank }}</td><td>{{ s.name }}</td>
     {% for x in s.results %}<td class="num {% if loop.index0 == s.dropped_index %}struck{% endif %}">{{ "–" if x is none else x }}</td>{% endfor %}
-    <td class="num"><b>{{ s.total }}</b></td><td class="num">{{ s.played }}</td></tr>
+    <td class="num">{{ s.played }}</td>
+    {% if drop %}<td class="num">{{ s.raw_total }}</td><td class="num">{{ "–" if not s.dropped_value else "−" ~ s.dropped_value }}</td>{% endif %}
+    <td class="num"><b>{{ s.total }}</b></td></tr>
   {% endfor %}
 </table>
 <p class="muted">{{ "Brutto" if gross else "Netto" }}punkte Stableford.{% if drop %} Durchgestrichen = Streichresultat{% if settings.missed_round_counts_as_zero %} (eine verpasste Runde zählt als 0 und wird zuerst gestrichen){% endif %}.{% endif %}</p>
 </div>
 <div class="noprint">
   <a class="btn" href="/jahr/{{ group|urlencode }}/{{ year }}/pdf{{ q }}" target="_blank">PDF / Drucken</a>
-  <button class="wa" onclick="shareRanking('/jahr/{{ group|urlencode }}/{{ year }}/pdf{{ q }}', 'Jahreswertung_{{ year }}.pdf', {{ share_text|tojson|forceescape }})">Per WhatsApp teilen</button>
+  <button class="wa" onclick="shareRanking('/jahr/{{ group|urlencode }}/{{ year }}/pdf{{ q }}', '{{ serie or "Jahreswertung" }}_{{ year }}.pdf', {{ share_text|tojson|forceescape }})">Per WhatsApp teilen</button>
   <button class="sec" onclick="shareText({{ share_text|tojson|forceescape }})">Als Text teilen</button>
 </div>
 {% endif %}

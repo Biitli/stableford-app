@@ -141,7 +141,7 @@ def home(request: Request):
     for g in repo.settings()["groups"]:
         rs = repo.rounds(group=g)
         years = sorted({int(r["date"][:4]) for r in rs} | {year}, reverse=True)
-        groups.append({"name": g, "rounds": list(reversed(rs))[:8], "years": years})
+        groups.append({"name": g, "rounds": list(reversed(rs))[:8], "years": years, "series": series_of(g)})
     courses = {c["id"]: c for c in repo.courses()}
     return render(request, "home.html", groups=groups, courses=courses, year=year)
 
@@ -353,14 +353,19 @@ def new_round(request: Request, gruppe: str = ""):
     return render(request, "round_new.html", courses=repo.courses(), group=gruppe, today=date.today().isoformat())
 
 
+def series_of(group: str) -> list[str]:
+    return [name for name, g in safe_settings().get("series", {}).items() if g == group]
+
+
 @app.post("/runden")
 def create_round(group: str = Form(...), date_: str = Form(..., alias="date"), course: str = Form(""),
-                 course_tee: str = Form(""), title: str = Form("")):
+                 course_tee: str = Form(""), title: str = Form(""), series: list[str] = Form([])):
     # Der Abschlag wird pro Spieler beim Prüfen der Karte gewählt; rnd["tee"] ist nur der Vorgabewert.
     cid, _, tee = (course_tee or course).partition("|")
     tee = tee or repo.course(cid)["tees"][0]["name"]
     r = repo.save_round({"group": group, "date": date_, "course_id": cid, "tee": tee, "title": title.strip(),
-                         "allowance": repo.settings()["allowance"], "players": []})
+                         "allowance": repo.settings()["allowance"], "players": [],
+                         "series": [x for x in series if x in series_of(group)]})
     return back(f"/runden/{r['id']}")
 
 
@@ -376,7 +381,7 @@ def show_round(request: Request, rid: str):
     if not rnd:
         return back("/")
     rows = daily_ranking(rnd, course) if rnd["players"] else []
-    return render(request, "round.html", rnd=rnd, course=course, rows=rows,
+    return render(request, "round.html", rnd=rnd, course=course, rows=rows, series=series_of(rnd["group"]),
                   share_text=pdf.day_text(rnd["group"], rnd, course, rows))
 
 
@@ -467,6 +472,14 @@ def delete_player(rid: str, idx: int):
     return back(f"/runden/{rid}")
 
 
+@app.post("/runden/{rid}/serien")
+def set_round_series(rid: str, series: list[str] = Form([])):
+    rnd = repo.round(rid)
+    rnd["series"] = [x for x in series if x in series_of(rnd["group"])]
+    repo.save_round(rnd)
+    return back(f"/runden/{rid}")
+
+
 @app.post("/runden/{rid}/loeschen")
 def delete_round(rid: str):
     repo.delete_round(rid)
@@ -493,8 +506,10 @@ def round_pdf(rid: str):
 
 
 # Jahreswertung
-def season_data(group: str, year: int, drop: bool, gross: bool):
+def season_data(group: str, year: int, drop: bool, gross: bool, serie: str = ""):
     rounds = repo.rounds(group=group, year=year)
+    if serie:
+        rounds = [r for r in rounds if serie in r.get("series", [])]
     courses = {c["id"]: c for c in repo.courses()}
     rounds = [r for r in rounds if r["players"] and r["course_id"] in courses]
     rows = season_ranking(rounds, courses, drop_worst=drop, gross=gross,
@@ -503,19 +518,21 @@ def season_data(group: str, year: int, drop: bool, gross: bool):
 
 
 @app.get("/jahr/{group}/{year}", response_class=HTMLResponse)
-def season(request: Request, group: str, year: int, streich: int = 0, brutto: int = 0):
+def season(request: Request, group: str, year: int, streich: int = 0, brutto: int = 0, serie: str = ""):
     drop, gross = bool(streich), bool(brutto)
-    rounds, courses, rows = season_data(group, year, drop, gross)
+    rounds, courses, rows = season_data(group, year, drop, gross, serie)
     return render(request, "season.html", group=group, year=year, rounds=rounds, courses=courses, rows=rows,
-                  drop=drop, gross=gross, share_text=pdf.season_text(group, year, rows, drop, gross))
+                  drop=drop, gross=gross, serie=serie,
+                  share_text=pdf.season_text(group, year, rows, drop, gross, serie))
 
 
 @app.get("/jahr/{group}/{year}/pdf")
-def season_pdf(group: str, year: int, streich: int = 0, brutto: int = 0):
+def season_pdf(group: str, year: int, streich: int = 0, brutto: int = 0, serie: str = ""):
     drop, gross = bool(streich), bool(brutto)
-    rounds, _, rows = season_data(group, year, drop, gross)
-    data = pdf.season_pdf(group, year, rounds, rows, drop, gross)
-    fname = f"Jahreswertung_{year}_{'Brutto' if gross else 'Netto'}{'_Streichresultat' if drop else ''}.pdf"
+    rounds, _, rows = season_data(group, year, drop, gross, serie)
+    data = pdf.season_pdf(group, year, rounds, rows, drop, gross, serie)
+    fname = (f"{slug(serie) + '_' if serie else 'Jahreswertung_'}{year}_{'Brutto' if gross else 'Netto'}"
+             f"{'_Streichresultat' if drop else ''}.pdf")
     repo.save_pdf(group, fname, data)
     return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{fname}"'})
 

@@ -78,6 +78,17 @@ class SeasonRow:
     best: int = 0
     extra: dict = field(default_factory=dict)
 
+    @property
+    def raw_total(self) -> int:
+        """Total aller Runden, vor dem Streichen."""
+        return sum(x or 0 for x in self.results)
+
+    @property
+    def dropped_value(self) -> int | None:
+        if self.dropped_index is None:
+            return None
+        return self.results[self.dropped_index] or 0
+
 
 def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: bool = False,
                    missed_counts_as_zero: bool = True, gross: bool = False) -> list[SeasonRow]:
