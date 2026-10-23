@@ -46,12 +46,12 @@
   {% if team_rows %}
   <h3>2 Best of {{ rnd.team_size }}</h3>
   <div class="scroll"><table>
-    <tr><th>Rang</th><th>Team / Spieler</th>{% for h in course.holes %}<th class="num">{{ loop.index }}</th>{% endfor %}<th class="num">Total</th></tr>
+    <tr><th>Rang</th><th>Team / Spieler</th>{% for h in course.holes %}<th class="num">{{ loop.index }}</th>{% endfor %}<th class="num">Netto</th><th class="num">Brutto</th></tr>
     {% for t in team_rows %}
-    <tr><td>{{ t.rank }}</td><td><b>{{ t.name }}</b><br>{{ t.names|join(', ') }}</td>{% for pts in t.holes %}<td class="num">{{ pts }}</td>{% endfor %}<td class="num"><b>{{ t.total }}</b></td></tr>
+    <tr><td>{{ t.rank }}</td><td><b>{{ t.name }}</b><br>{{ t.names|join(', ') }}</td>{% for pts in t.holes %}<td class="num">{{ pts }}</td>{% endfor %}<td class="num"><b>{{ t.total }}</b></td><td class="num">{{ t.gross }}</td></tr>
     {% endfor %}
   </table></div>
-  <p class="muted">Bei gleichem Total teilen sich Teams den Rang. Die Teamwertung lässt sich über die Druckfunktion des Browsers drucken.</p>
+  <p class="muted">Die Punkte pro Loch sind netto. Bei gleichem Total entscheiden die letzten 9, 6, 3 und 1 Löcher. Die Teamwertung ist auch im PDF und im WhatsApp-Text der Runde.</p>
   {% endif %}
 </section>
 

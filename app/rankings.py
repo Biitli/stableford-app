@@ -130,8 +130,24 @@ def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: boo
     return rows
 
 
+TEAM_FORMATS = {3: "2 Best of 3", 4: "2 Best of 4"}
+
+
+def best_two(points: list[list[int]]) -> list[int]:
+    """Je Loch die Summe der zwei besten Resultate."""
+    return [sum(sorted(values, reverse=True)[:2]) for values in zip(*points)]
+
+
+def _countback(holes: list[int]) -> tuple[int, ...]:
+    cuts = (9, 12, 15, 17) if len(holes) == 18 else (3, 6, 8)
+    return (sum(holes), *(sum(holes[c:]) for c in cuts))
+
+
 def team_ranking(rnd: dict, course: dict) -> list[dict]:
-    """Je Loch die zwei höchsten Netto-Stableford-Punktzahlen addieren."""
+    """Je Loch die zwei höchsten Stableford-Punktzahlen (netto und brutto) addieren.
+
+    Bei gleichem Total entscheiden wie im Einzel die letzten 9, 6, 3 und 1 Löcher.
+    """
     size = rnd.get("team_size", 3)
     rows = []
     for team in rnd.get("teams", []):
@@ -141,15 +157,19 @@ def team_ranking(rnd: dict, course: dict) -> list[dict]:
         if any(i < 0 or i >= len(rnd["players"]) for i in indexes):
             continue
         players = [rnd["players"][i] for i in indexes]
-        points = [score_player(p, course, p.get("tee") or rnd["tee"],
-                               float(rnd.get("allowance", 1.0))).net_points for p in players]
-        holes = [sum(sorted(values, reverse=True)[:2]) for values in zip(*points)]
+        results = [score_player(p, course, p.get("tee") or rnd["tee"], float(rnd.get("allowance", 1.0)))
+                   for p in players]
+        holes = best_two([r.net_points for r in results])
+        gross_holes = best_two([r.gross_points for r in results])
         rows.append({"name": team["name"], "names": [p["name"] for p in players],
-                     "holes": holes, "total": sum(holes)})
-    rows.sort(key=lambda r: (-r["total"], r["name"].lower()))
-    previous, rank = None, 0
-    for i, row in enumerate(rows, 1):
-        if row["total"] != previous:
-            rank, previous = i, row["total"]
-        row["rank"] = rank
+                     "holes": holes, "total": sum(holes), "gross_holes": gross_holes, "gross": sum(gross_holes)})
+    for attr, key in (("gross_rank", lambda r: (*_countback(r["gross_holes"]), r["total"])),
+                      ("rank", lambda r: _countback(r["holes"]))):
+        rows.sort(key=lambda r: r["name"].lower())
+        rows.sort(key=key, reverse=True)
+        previous, rank = None, 0
+        for i, row in enumerate(rows, 1):
+            if key(row) != previous:
+                rank, previous = i, key(row)
+            row[attr] = rank
     return rows

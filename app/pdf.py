@@ -6,7 +6,7 @@ from datetime import date
 
 from fpdf import FPDF
 
-from .rankings import DayRow, SeasonRow
+from .rankings import TEAM_FORMATS, DayRow, SeasonRow
 
 FONT = 8  # Schriftgrösse der Tabellen
 ROW_H = 5
@@ -67,7 +67,11 @@ class _Pdf(FPDF):
         self.multi_cell(0, 4, _latin(text), new_x="LMARGIN", new_y="NEXT")
 
 
-def day_pdf(group: str, rnd: dict, course: dict, rows: list[DayRow]) -> bytes:
+def team_title(rnd: dict) -> str:
+    return "Teamwertung " + TEAM_FORMATS[rnd.get("team_size", 3)]
+
+
+def day_pdf(group: str, rnd: dict, course: dict, rows: list[DayRow], teams: list[dict] = ()) -> bytes:
     pdf = _Pdf(rnd.get("title") or "Tagesrangliste",
                f"{group} - {course['name']} - {fmt_date(rnd['date'])}")
     widths = [11, 52, 13, 17, 15, 15, 15]
@@ -84,8 +88,15 @@ def day_pdf(group: str, rnd: dict, course: dict, rows: list[DayRow]) -> bytes:
     pdf.heading("Brutto")
     by_gross = sorted(rows, key=lambda r: (r.gross_rank, r.name.lower()))
     pdf.table(headers, widths, [line(r.gross_rank, r) for r in by_gross], aligns, bold_cols={5})
+    if teams:
+        pdf.ln(5)
+        pdf.heading(team_title(rnd))
+        pdf.table(["Rang", "Team", "Spieler", "Netto", "Brutto"], [11, 35, 85, 15, 15],
+                  [[str(t["rank"]), t["name"], ", ".join(t["names"]), str(t["total"]), str(t["gross"])]
+                   for t in teams], "CLLCC", bold_cols={3})
     pdf.note("Stableford-Punkte. Netto: bei Punktgleichheit entscheiden die letzten 9, 6, 3 und 1 Löcher. "
-             "Brutto: bei Punktgleichheit entscheiden die Nettopunkte.")
+             "Brutto: bei Punktgleichheit entscheiden die Nettopunkte."
+             + (" Team: pro Loch zählen die zwei besten Resultate des Teams." if teams else ""))
     return bytes(pdf.output())
 
 
@@ -120,13 +131,16 @@ def season_pdf(group: str, year: int, rounds: list[dict], rows: list[SeasonRow],
     return bytes(pdf.output())
 
 
-def day_text(group: str, rnd: dict, course: dict, rows: list[DayRow]) -> str:
+def day_text(group: str, rnd: dict, course: dict, rows: list[DayRow], teams: list[dict] = ()) -> str:
     lines = [f"*{rnd.get('title') or 'Tagesrangliste'} {group}*",
              f"{course['name']}, {fmt_date(rnd['date'])}", "", "*Netto*"]
     lines += [f"{r.rank}. {r.name} – {r.net} P." for r in rows]
     lines += ["", "*Brutto*"]
     lines += [f"{r.gross_rank}. {r.name} – {r.gross} P."
               for r in sorted(rows, key=lambda r: (r.gross_rank, r.name.lower()))]
+    if teams:
+        lines += ["", f"*{team_title(rnd)}*"]
+        lines += [f"{t['rank']}. {t['name']} ({', '.join(t['names'])}) – {t['total']} P." for t in teams]
     return "\n".join(lines)
 
 

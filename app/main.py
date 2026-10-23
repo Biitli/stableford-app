@@ -381,9 +381,10 @@ def show_round(request: Request, rid: str, team_error: str = ""):
     if not rnd:
         return back("/")
     rows = daily_ranking(rnd, course) if rnd["players"] else []
+    team_rows = team_ranking(rnd, course)
     return render(request, "round.html", rnd=rnd, course=course, rows=rows, series=series_of(rnd["group"]),
-                  share_text=pdf.day_text(rnd["group"], rnd, course, rows),
-                  team_rows=team_ranking(rnd, course), team_error=team_error,
+                  share_text=pdf.day_text(rnd["group"], rnd, course, rows, team_rows),
+                  team_rows=team_rows, team_error=team_error,
                   assignments={i: t["name"] for t in rnd.get("teams", []) for i in t["players"]})
 
 
@@ -531,7 +532,7 @@ def show_card(request: Request, rid: str, idx: int):
 def round_pdf(rid: str):
     rnd, course = round_ctx(rid)
     rows = daily_ranking(rnd, course)
-    data = pdf.day_pdf(rnd["group"], rnd, course, rows)
+    data = pdf.day_pdf(rnd["group"], rnd, course, rows, team_ranking(rnd, course))
     fname = f"{rnd['date']}_{slug(course['name'])}.pdf"
     repo.save_pdf(rnd["group"], fname, data)
     return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{fname}"'})

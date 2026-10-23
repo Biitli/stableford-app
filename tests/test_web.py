@@ -252,3 +252,23 @@ def test_team_formats(client):
     assert client.get(url).status_code == 200
     client.post(url + "/teams", data={"team_size": "3"})
     assert main.repo.round(rnd["id"])["teams"] == []
+
+
+def test_team_gross_pdf_and_text(client):
+    from app import pdf
+    from app.rankings import best_two, team_ranking
+
+    assert best_two([[2, 0, 3], [1, 4, 3], [3, 1, 0]]) == [5, 5, 6]
+    course = main.repo.save_course({
+        "name": "Teamplatz", "holes": [{"par": 4, "si": i + 1} for i in range(9)],
+        "tees": [{"name": "Gelb", "cr": 36, "slope": 113}],
+    })
+    rnd = main.repo.save_round({
+        "group": "C-Club", "date": "2026-10-26", "course_id": course["id"], "tee": "Gelb", "allowance": 1.0,
+        "players": [{"name": f"S{i}", "hcp_index": 0, "scores": [3 + i] * 9} for i in range(6)],
+        "team_size": 3, "teams": [{"name": "Hinten", "players": [3, 4, 5]}, {"name": "Vorne", "players": [0, 1, 2]}],
+    })
+    rows = team_ranking(rnd, course)
+    assert [(r["name"], r["rank"], r["total"], r["gross"]) for r in rows] == [("Vorne", 1, 45, 45), ("Hinten", 2, 0, 0)]
+    assert "Teamwertung 2 Best of 3" in pdf.day_text("C-Club", rnd, course, [], rows)
+    assert client.get(f"/runden/{rnd['id']}/pdf").status_code == 200
