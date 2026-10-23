@@ -207,3 +207,48 @@ def test_classic_series(client):
     # Pinseekers haben kein Classic
     client.post(f"/runden/{rids[1]}/serien", data={"series": "Gibt es nicht"})
     assert main.repo.round(rids[1])["series"] == []
+
+
+def test_team_formats(client):
+    from app.rankings import team_ranking
+
+    course = main.repo.save_course({
+        "name": "Teamplatz", "holes": [{"par": 4, "si": i + 1} for i in range(9)],
+        "tees": [{"name": "Gelb", "cr": 36, "slope": 113}],
+    })
+    # Wechselnde beste Spieler: 5+2 statt der zwei besten Gesamtkarten.
+    scores = [[1, 4] + [4] * 7, [4, 1] + [4] * 7,
+              [5] * 9, [2] * 9]
+    rnd = main.repo.save_round({
+        "group": "C-Club", "date": "2026-10-26", "course_id": course["id"],
+        "tee": "Gelb", "allowance": 1.0,
+        "players": [{"name": f"Spieler {i}", "hcp_index": 0, "scores": s}
+                    for i, s in enumerate(scores)],
+    })
+    url = f"/runden/{rnd['id']}"
+    response = client.post(url + "/teams", data={
+        "team_size": "3", "team_0": "Adler", "team_1": "Adler", "team_2": "Adler"})
+    assert response.status_code == 200 and "Adler" in response.text
+    saved = main.repo.round(rnd["id"])
+    result = team_ranking(saved, course)[0]
+    assert result["holes"] == [7, 7] + [4] * 7
+    assert result["total"] == 42
+    # Unvollständige Teams werden abgewiesen, vorhandene Zuordnung bleibt.
+    response = client.post(url + "/teams", data={"team_size": "4", "team_0": "Falsch"})
+    assert "genau 4 Spieler" in response.text
+    assert main.repo.round(rnd["id"])["team_size"] == 3
+    response = client.post(url + "/teams", data={
+        "team_size": "4", **{f"team_{i}": "Vierer" for i in range(4)}})
+    assert response.status_code == 200
+    result = team_ranking(main.repo.round(rnd["id"]), course)[0]
+    assert result["holes"] == [9, 9] + [6] * 7
+    # Änderungen an einer Karte werden sofort neu berechnet.
+    saved = main.repo.round(rnd["id"])
+    saved["players"][3]["scores"] = [None] * 9
+    main.repo.save_round(saved)
+    assert team_ranking(main.repo.round(rnd["id"]), course)[0]["total"] == 42
+    client.post(url + "/spieler/0/loeschen")
+    assert main.repo.round(rnd["id"])["teams"] == []
+    assert client.get(url).status_code == 200
+    client.post(url + "/teams", data={"team_size": "3"})
+    assert main.repo.round(rnd["id"])["teams"] == []
