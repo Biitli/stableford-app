@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import ai, importer, pdf
-from .rankings import daily_ranking, score_player, season_ranking, tee_of
+from .rankings import daily_ranking, score_player, season_ranking, tee_of, team_ranking
 from .repo import DEFAULT_SETTINGS, Repo, slug
 from .storage import LocalStorage, dropbox_token_set, env, storage_from_env
 
@@ -376,13 +376,15 @@ def round_ctx(rid: str):
 
 
 @app.get("/runden/{rid}", response_class=HTMLResponse)
-def show_round(request: Request, rid: str):
+def show_round(request: Request, rid: str, team_error: str = ""):
     rnd, course = round_ctx(rid)
     if not rnd:
         return back("/")
     rows = daily_ranking(rnd, course) if rnd["players"] else []
     return render(request, "round.html", rnd=rnd, course=course, rows=rows, series=series_of(rnd["group"]),
-                  share_text=pdf.day_text(rnd["group"], rnd, course, rows))
+                  share_text=pdf.day_text(rnd["group"], rnd, course, rows),
+                  team_rows=team_ranking(rnd, course), team_error=team_error,
+                  assignments={i: t["name"] for t in rnd.get("teams", []) for i in t["players"]})
 
 
 def review_player(p: dict, rnd: dict) -> dict:
@@ -468,8 +470,38 @@ async def save_players(rid: str, request: Request):
 def delete_player(rid: str, idx: int):
     rnd = repo.round(rid)
     rnd["players"].pop(idx)
+    # Nach einer Löschung die übrigen Zuordnungen erhalten; betroffene Teams neu wählen.
+    rnd["teams"] = [
+        {**t, "players": [i - 1 if i > idx else i for i in t["players"]]}
+        for t in rnd.get("teams", []) if idx not in t["players"]
+    ]
     repo.save_round(rnd)
     return back(f"/runden/{rid}")
+
+
+@app.post("/runden/{rid}/teams")
+async def save_teams(request: Request, rid: str):
+    rnd, course = round_ctx(rid)
+    if not rnd:
+        return back("/")
+    form = await request.form()
+    try:
+        size = int(str(form.get("team_size", "")))
+        if size not in (3, 4):
+            raise ValueError("Bitte 2 Best of 3 oder 2 Best of 4 wählen.")
+        teams = {}
+        for i in range(len(rnd["players"])):
+            name = str(form.get(f"team_{i}", "")).strip()
+            if name:
+                teams.setdefault(name, []).append(i)
+        if any(len(players) != size for players in teams.values()):
+            raise ValueError(f"Jedes Team muss genau {size} Spieler haben.")
+        rnd["team_size"] = size
+        rnd["teams"] = [{"name": name, "players": players} for name, players in teams.items()]
+        repo.save_round(rnd)
+    except ValueError as exc:
+        return back(f"/runden/{rid}?team_error={quote(str(exc))}#teams")
+    return back(f"/runden/{rid}#teams")
 
 
 @app.post("/runden/{rid}/serien")

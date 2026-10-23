@@ -128,3 +128,28 @@ def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: boo
     _assign_ranks(rows, key=lambda r: (r.total, r.best), attr="rank")
     rows.sort(key=lambda r: (r.rank, r.name.lower()))
     return rows
+
+
+def team_ranking(rnd: dict, course: dict) -> list[dict]:
+    """Je Loch die zwei höchsten Netto-Stableford-Punktzahlen addieren."""
+    size = rnd.get("team_size", 3)
+    rows = []
+    for team in rnd.get("teams", []):
+        indexes = team["players"]
+        if len(indexes) != size or len(set(indexes)) != size:
+            continue
+        if any(i < 0 or i >= len(rnd["players"]) for i in indexes):
+            continue
+        players = [rnd["players"][i] for i in indexes]
+        points = [score_player(p, course, p.get("tee") or rnd["tee"],
+                               float(rnd.get("allowance", 1.0))).net_points for p in players]
+        holes = [sum(sorted(values, reverse=True)[:2]) for values in zip(*points)]
+        rows.append({"name": team["name"], "names": [p["name"] for p in players],
+                     "holes": holes, "total": sum(holes)})
+    rows.sort(key=lambda r: (-r["total"], r["name"].lower()))
+    previous, rank = None, 0
+    for i, row in enumerate(rows, 1):
+        if row["total"] != previous:
+            rank, previous = i, row["total"]
+        row["rank"] = rank
+    return rows
