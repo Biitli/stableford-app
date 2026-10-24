@@ -2,6 +2,7 @@
 {% block content %}
 <h1>{{ rnd.title or "Tagesrangliste" }} – {{ rnd.group }}</h1>
 <p class="muted">{{ rnd.date|datum }} · {{ course.name }}{% if rnd.allowance != 1 %} · {{ (rnd.allowance*100)|round|int }} % HCP{% endif %}</p>
+{% if rows %}<p class="noprint"><a class="btn sec" href="#teams">👥 Teamwertung (2 Best of 3 / 4)</a></p>{% endif %}
 {% if series %}
 <form method="post" action="/runden/{{ rnd.id }}/serien" class="card noprint">
   {% for s in series %}
