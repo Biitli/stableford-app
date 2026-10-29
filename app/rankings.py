@@ -146,7 +146,8 @@ def _countback(holes: list[int]) -> tuple[int, ...]:
 def team_ranking(rnd: dict, course: dict) -> list[dict]:
     """Je Loch die zwei höchsten Stableford-Punktzahlen (netto und brutto) addieren.
 
-    Bei gleichem Total entscheiden wie im Einzel die letzten 9, 6, 3 und 1 Löcher.
+    Netto: bei gleichem Total entscheiden wie im Einzel die letzten 9, 6, 3 und 1 Löcher.
+    Brutto: bei gleichem Total entscheiden wie im Einzel die Nettopunkte (inkl. Stechen).
     """
     size = rnd.get("team_size", 3)
     rows = []
@@ -163,7 +164,7 @@ def team_ranking(rnd: dict, course: dict) -> list[dict]:
         gross_holes = best_two([r.gross_points for r in results])
         rows.append({"name": team["name"], "names": [p["name"] for p in players],
                      "holes": holes, "total": sum(holes), "gross_holes": gross_holes, "gross": sum(gross_holes)})
-    for attr, key in (("gross_rank", lambda r: (*_countback(r["gross_holes"]), r["total"])),
+    for attr, key in (("gross_rank", lambda r: (r["gross"], *_countback(r["holes"]))),
                       ("rank", lambda r: _countback(r["holes"]))):
         rows.sort(key=lambda r: r["name"].lower())
         rows.sort(key=key, reverse=True)

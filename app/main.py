@@ -490,15 +490,16 @@ async def save_teams(request: Request, rid: str):
         size = int(str(form.get("team_size", "")))
         if size not in (3, 4):
             raise ValueError("Bitte 2 Best of 3 oder 2 Best of 4 wählen.")
+        # Teamnamen ohne Rücksicht auf Gross-/Kleinschreibung und doppelte Leerzeichen zusammenfassen.
         teams = {}
         for i in range(len(rnd["players"])):
-            name = str(form.get(f"team_{i}", "")).strip()
+            name = " ".join(str(form.get(f"team_{i}", "")).split())
             if name:
-                teams.setdefault(name, []).append(i)
-        if any(len(players) != size for players in teams.values()):
+                teams.setdefault(name.casefold(), (name, []))[1].append(i)
+        if any(len(players) != size for _, players in teams.values()):
             raise ValueError(f"Jedes Team muss genau {size} Spieler haben.")
         rnd["team_size"] = size
-        rnd["teams"] = [{"name": name, "players": players} for name, players in teams.items()]
+        rnd["teams"] = [{"name": name, "players": players} for name, players in teams.values()]
         repo.save_round(rnd)
     except ValueError as exc:
         return back(f"/runden/{rid}?team_error={quote(str(exc))}#teams")
