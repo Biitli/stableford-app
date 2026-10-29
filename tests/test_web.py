@@ -272,3 +272,70 @@ def test_team_gross_pdf_and_text(client):
     assert [(r["name"], r["rank"], r["total"], r["gross"]) for r in rows] == [("Vorne", 1, 45, 45), ("Hinten", 2, 0, 0)]
     assert "Teamwertung 2 Best of 3" in pdf.day_text("C-Club", rnd, course, [], rows)
     assert client.get(f"/runden/{rnd['id']}/pdf").status_code == 200
+
+
+def test_team_points_with_handicaps():
+    """Nachgerechnetes Beispiel: Vorgabeschläge je Spieler, dann pro Loch die zwei besten Punkte."""
+    from app.rankings import team_ranking
+
+    course = {"holes": [{"par": 4, "si": i + 1} for i in range(9)],
+              "tees": [{"name": "Gelb", "cr": 36, "slope": 113}]}
+    rnd = {"tee": "Gelb", "allowance": 1.0, "team_size": 3, "teams": [{"name": "A", "players": [0, 1, 2]}],
+           "players": [
+               # HCP 18 auf 9 Loch -> 9 Schläge, je einer pro Loch
+               {"name": "A", "hcp_index": 18, "scores": [5] * 9},
+               # HCP 0
+               {"name": "B", "hcp_index": 0, "scores": [4, 5, 3, 4, 6, 4, 4, 4, 4]},
+               # HCP 9 -> 4.5 -> 5 Schläge auf SI 1-5
+               {"name": "C", "hcp_index": 9, "scores": [5, 5, 5, 5, 5, 4, 4, 4, 4]},
+           ]}
+    row = team_ranking(rnd, course)[0]
+    assert row["holes"] == [4, 4, 5, 4, 4, 4, 4, 4, 4]
+    assert row["total"] == 37
+    assert row["gross_holes"] == [3, 2, 4, 3, 2, 4, 4, 4, 4]
+    assert row["gross"] == 30
+
+
+def test_team_tie_breaks():
+    from app.rankings import team_ranking
+
+    course = {"holes": [{"par": 4, "si": i + 1} for i in range(18)],
+              "tees": [{"name": "Gelb", "cr": 72, "slope": 113}]}
+    par, bogey = [4] * 18, [5] * 18
+    # Gleiches Netto-Total (je 2x 18 Löcher à 2 Punkte = 72), "Spät" ist auf den letzten 9 besser.
+    early = [3] * 9 + [5] * 9
+    late = [5] * 9 + [3] * 9
+    players = [{"name": f"S{i}", "hcp_index": 0, "scores": s}
+               for i, s in enumerate([early, early, bogey, late, late, bogey])]
+    rnd = {"tee": "Gelb", "allowance": 1.0, "team_size": 3, "players": players,
+           "teams": [{"name": "Früh", "players": [0, 1, 2]}, {"name": "Spät", "players": [3, 4, 5]}]}
+    rows = {r["name"]: r for r in team_ranking(rnd, course)}
+    assert rows["Früh"]["total"] == rows["Spät"]["total"] == 72
+    assert (rows["Spät"]["rank"], rows["Früh"]["rank"]) == (1, 2)
+
+    # Brutto gleich (72), "Gleich" wäre auf den letzten 9 brutto besser, aber wie im Einzel
+    # entscheiden die Nettopunkte: Team "Netto" hat einen Spieler mit Vorgabe.
+    players = [{"name": "N1", "hcp_index": 0, "scores": par}, {"name": "N2", "hcp_index": 0, "scores": par},
+               {"name": "N3", "hcp_index": 54, "scores": par},
+               {"name": "G1", "hcp_index": 0, "scores": late}, {"name": "G2", "hcp_index": 0, "scores": late},
+               {"name": "G3", "hcp_index": 0, "scores": late}]
+    rnd = {"tee": "Gelb", "allowance": 1.0, "team_size": 3, "players": players,
+           "teams": [{"name": "Gleich", "players": [3, 4, 5]}, {"name": "Netto", "players": [0, 1, 2]}]}
+    rows = {r["name"]: r for r in team_ranking(rnd, course)}
+    assert rows["Netto"]["gross"] == rows["Gleich"]["gross"] == 72
+    assert rows["Netto"]["total"] > rows["Gleich"]["total"]
+    assert (rows["Netto"]["gross_rank"], rows["Gleich"]["gross_rank"]) == (1, 2)
+
+
+def test_team_names_ignore_case(client):
+    course = main.repo.save_course({
+        "name": "Teamplatz", "holes": [{"par": 4, "si": i + 1} for i in range(9)],
+        "tees": [{"name": "Gelb", "cr": 36, "slope": 113}],
+    })
+    rnd = main.repo.save_round({
+        "group": "C-Club", "date": "2026-10-29", "course_id": course["id"], "tee": "Gelb", "allowance": 1.0,
+        "players": [{"name": f"S{i}", "hcp_index": 0, "scores": [4] * 9} for i in range(3)],
+    })
+    client.post(f"/runden/{rnd['id']}/teams", data={
+        "team_size": "3", "team_0": "Adler", "team_1": "adler ", "team_2": "ADLER"})
+    assert main.repo.round(rnd["id"])["teams"] == [{"name": "Adler", "players": [0, 1, 2]}]
