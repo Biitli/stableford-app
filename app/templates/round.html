@@ -2,7 +2,7 @@
 {% block content %}
 <h1>{{ rnd.title or "Tagesrangliste" }} – {{ rnd.group }}</h1>
 <p class="muted">{{ rnd.date|datum }} · {{ course.name }}{% if rnd.allowance != 1 %} · {{ (rnd.allowance*100)|round|int }} % HCP{% endif %}</p>
-{% if rows %}<p class="noprint"><a class="btn sec" href="#teams">👥 Teamwertung (2 Best of 3 / 4)</a></p>{% endif %}
+{% if rows %}<p class="noprint"><a class="btn sec" href="#teams">👥 Teamwertung (Better Ball / 2 Best of 3 / 4)</a></p>{% endif %}
 {% if series %}
 <form method="post" action="/runden/{{ rnd.id }}/serien" class="card noprint">
   {% for s in series %}
@@ -29,11 +29,12 @@
 {% if rows %}
 <section id="teams" class="card">
   <h2>Teamwertung</h2>
-  <p>Pro Loch zählen die zwei höchsten Netto-Stableford-Punktzahlen. Das Teamtotal ist die Summe über alle Löcher. Aufgehobene Löcher zählen als 0 Punkte.</p>
+  <p>4-Ball Better Ball: pro Loch zählt das bessere Netto-Stableford-Resultat der beiden Spieler. 2 Best of 3 / 4: pro Loch zählen die zwei höchsten. Das Teamtotal ist die Summe über alle Löcher. Aufgehobene Löcher zählen als 0 Punkte.</p>
   {% if team_error %}<p role="alert">{{ team_error }}</p>{% endif %}
   <form method="post" action="/runden/{{ rnd.id }}/teams" class="noprint">
     <label>Format
       <select name="team_size">
+        <option value="2" {% if rnd.get('team_size') == 2 %}selected{% endif %}>4-Ball Better Ball – zwei Spieler pro Team</option>
         <option value="3" {% if rnd.get('team_size', 3) == 3 %}selected{% endif %}>2 Best of 3 – drei Spieler pro Team</option>
         <option value="4" {% if rnd.get('team_size') == 4 %}selected{% endif %}>2 Best of 4 – vier Spieler pro Team</option>
       </select>
@@ -45,7 +46,7 @@
     <button>Teams speichern und berechnen</button>
   </form>
   {% if team_rows %}
-  <h3>2 Best of {{ rnd.team_size }}</h3>
+  <h3>{{ team_format }}</h3>
   <div class="scroll"><table>
     <tr><th>Rang</th><th>Team / Spieler</th>{% for h in course.holes %}<th class="num">{{ loop.index }}</th>{% endfor %}<th class="num">Netto</th><th class="num">Brutto</th></tr>
     {% for t in team_rows %}

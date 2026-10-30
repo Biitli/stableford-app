@@ -272,3 +272,33 @@ def test_team_gross_pdf_and_text(client):
     assert [(r["name"], r["rank"], r["total"], r["gross"]) for r in rows] == [("Vorne", 1, 45, 45), ("Hinten", 2, 0, 0)]
     assert "Teamwertung 2 Best of 3" in pdf.day_text("C-Club", rnd, course, [], rows)
     assert client.get(f"/runden/{rnd['id']}/pdf").status_code == 200
+
+
+def test_better_ball(client):
+    from app import pdf
+    from app.rankings import team_ranking
+
+    course = main.repo.save_course({
+        "name": "Teamplatz", "holes": [{"par": 4, "si": i + 1} for i in range(9)],
+        "tees": [{"name": "Gelb", "cr": 36, "slope": 113}],
+    })
+    # 8 Spieler, 4 Zweierteams. Team A: abwechselnd Birdie/Bogey -> pro Loch 3 Punkte.
+    scores = [[3, 5] * 4 + [3], [5, 3] * 4 + [5]] + [[4] * 9] * 6
+    rnd = main.repo.save_round({
+        "group": "C-Club", "date": "2026-10-30", "course_id": course["id"], "tee": "Gelb", "allowance": 1.0,
+        "players": [{"name": f"S{i}", "hcp_index": 0, "scores": s} for i, s in enumerate(scores)],
+    })
+    url = f"/runden/{rnd['id']}"
+    data = {"team_size": "2", **{f"team_{i}": "ABCD"[i // 2] for i in range(8)}}
+    response = client.post(url + "/teams", data=data)
+    assert response.status_code == 200 and "4-Ball Better Ball" in response.text
+    saved = main.repo.round(rnd["id"])
+    rows = team_ranking(saved, course)
+    assert [(r["name"], r["total"]) for r in rows][0] == ("A", 27)
+    assert rows[0]["holes"] == [3] * 9
+    assert [r["total"] for r in rows[1:]] == [18, 18, 18]
+    assert "Teamwertung 4-Ball Better Ball" in pdf.day_text("C-Club", saved, course, [], rows)
+    assert client.get(url + "/pdf").status_code == 200
+    # Dreierteam bei Better Ball wird abgewiesen.
+    response = client.post(url + "/teams", data={"team_size": "2", "team_0": "X", "team_1": "X", "team_2": "X"})
+    assert "genau 2 Spieler" in response.text

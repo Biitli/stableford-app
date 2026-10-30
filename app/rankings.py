@@ -130,12 +130,22 @@ def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: boo
     return rows
 
 
-TEAM_FORMATS = {3: "2 Best of 3", 4: "2 Best of 4"}
+TEAM_FORMATS = {2: "4-Ball Better Ball", 3: "2 Best of 3", 4: "2 Best of 4"}
+
+
+def counted_per_hole(team_size: int) -> int:
+    """Wie viele Resultate pro Loch zählen: Better Ball (Zweierteam) 1, sonst 2."""
+    return 1 if team_size == 2 else 2
+
+
+def best_n(points: list[list[int]], n: int) -> list[int]:
+    """Je Loch die Summe der n besten Resultate."""
+    return [sum(sorted(values, reverse=True)[:n]) for values in zip(*points)]
 
 
 def best_two(points: list[list[int]]) -> list[int]:
     """Je Loch die Summe der zwei besten Resultate."""
-    return [sum(sorted(values, reverse=True)[:2]) for values in zip(*points)]
+    return best_n(points, 2)
 
 
 def _countback(holes: list[int]) -> tuple[int, ...]:
@@ -144,7 +154,10 @@ def _countback(holes: list[int]) -> tuple[int, ...]:
 
 
 def team_ranking(rnd: dict, course: dict) -> list[dict]:
-    """Je Loch die zwei höchsten Stableford-Punktzahlen (netto und brutto) addieren.
+    """Je Loch die besten Stableford-Punktzahlen (netto und brutto) addieren.
+
+    4-Ball Better Ball (Zweierteams): das bessere Resultat pro Loch.
+    2 Best of 3 / 2 Best of 4: die zwei höchsten Resultate pro Loch.
 
     Bei gleichem Total entscheiden wie im Einzel die letzten 9, 6, 3 und 1 Löcher.
     """
@@ -159,8 +172,9 @@ def team_ranking(rnd: dict, course: dict) -> list[dict]:
         players = [rnd["players"][i] for i in indexes]
         results = [score_player(p, course, p.get("tee") or rnd["tee"], float(rnd.get("allowance", 1.0)))
                    for p in players]
-        holes = best_two([r.net_points for r in results])
-        gross_holes = best_two([r.gross_points for r in results])
+        n = counted_per_hole(size)
+        holes = best_n([r.net_points for r in results], n)
+        gross_holes = best_n([r.gross_points for r in results], n)
         rows.append({"name": team["name"], "names": [p["name"] for p in players],
                      "holes": holes, "total": sum(holes), "gross_holes": gross_holes, "gross": sum(gross_holes)})
     for attr, key in (("gross_rank", lambda r: (*_countback(r["gross_holes"]), r["total"])),

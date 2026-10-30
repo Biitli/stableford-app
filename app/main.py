@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import ai, importer, pdf
-from .rankings import daily_ranking, score_player, season_ranking, tee_of, team_ranking
+from .rankings import TEAM_FORMATS, daily_ranking, score_player, season_ranking, tee_of, team_ranking
 from .repo import DEFAULT_SETTINGS, Repo, slug
 from .storage import LocalStorage, dropbox_token_set, env, storage_from_env
 
@@ -385,6 +385,7 @@ def show_round(request: Request, rid: str, team_error: str = ""):
     return render(request, "round.html", rnd=rnd, course=course, rows=rows, series=series_of(rnd["group"]),
                   share_text=pdf.day_text(rnd["group"], rnd, course, rows, team_rows),
                   team_rows=team_rows, team_error=team_error,
+                  team_format=TEAM_FORMATS.get(rnd.get("team_size", 3), ""),
                   assignments={i: t["name"] for t in rnd.get("teams", []) for i in t["players"]})
 
 
@@ -488,8 +489,8 @@ async def save_teams(request: Request, rid: str):
     form = await request.form()
     try:
         size = int(str(form.get("team_size", "")))
-        if size not in (3, 4):
-            raise ValueError("Bitte 2 Best of 3 oder 2 Best of 4 wählen.")
+        if size not in (2, 3, 4):
+            raise ValueError("Bitte 4-Ball Better Ball, 2 Best of 3 oder 2 Best of 4 wählen.")
         teams = {}
         for i in range(len(rnd["players"])):
             name = str(form.get(f"team_{i}", "")).strip()

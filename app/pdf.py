@@ -96,7 +96,8 @@ def day_pdf(group: str, rnd: dict, course: dict, rows: list[DayRow], teams: list
                    for t in teams], "CLLCC", bold_cols={3})
     pdf.note("Stableford-Punkte. Netto: bei Punktgleichheit entscheiden die letzten 9, 6, 3 und 1 Löcher. "
              "Brutto: bei Punktgleichheit entscheiden die Nettopunkte."
-             + (" Team: pro Loch zählen die zwei besten Resultate des Teams." if teams else ""))
+             + ((" Team: pro Loch zählt das bessere Resultat der beiden Spieler." if rnd.get("team_size") == 2
+                 else " Team: pro Loch zählen die zwei besten Resultate des Teams.") if teams else ""))
     return bytes(pdf.output())
 
 
