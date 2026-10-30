@@ -16,6 +16,8 @@ DEFAULT_SETTINGS = {
     "missed_round_counts_as_zero": True,
     # Zusatzwertungen innerhalb einer Gruppe; pro Runde wählbar ("Zählt zum C-Club Classic")
     "series": {"C-Club Classic": "C-Club"},
+    # Ab wie vielen Runden das Streichresultat abgezogen wird, pro Gesamtwertung bzw. Serie (sonst 2)
+    "drop_min_rounds": {"C-Club": 4},
 }
 
 

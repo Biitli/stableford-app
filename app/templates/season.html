@@ -27,7 +27,7 @@
     <td class="num"><b>{{ s.total }}</b></td></tr>
   {% endfor %}
 </table>
-<p class="muted">{{ "Brutto" if gross else "Netto" }}punkte Stableford.{% if drop %} Durchgestrichen = Streichresultat{% if settings.missed_round_counts_as_zero %} (eine verpasste Runde zählt als 0 und wird zuerst gestrichen){% endif %}.{% endif %}</p>
+<p class="muted">{{ "Brutto" if gross else "Netto" }}punkte Stableford.{% if drop %} Durchgestrichen = Streichresultat{% if settings.missed_round_counts_as_zero %} (eine verpasste Runde zählt als 0 und wird zuerst gestrichen){% endif %}.{% if min_drop > 2 %} Gestrichen wird erst ab {{ min_drop }} Runden{% if rounds|length < min_drop %} – bisher {{ rounds|length }}, darum noch kein Abzug{% endif %}.{% endif %}{% endif %}</p>
 </div>
 <div class="noprint">
   <a class="btn" href="/jahr/{{ group|urlencode }}/{{ year }}/pdf/ansicht{{ q }}">PDF / Drucken</a>

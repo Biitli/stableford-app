@@ -627,14 +627,22 @@ def round_pdf_view(request: Request, rid: str):
 
 
 # Jahreswertung
+def min_rounds_for_drop(settings: dict, ranking: str) -> int:
+    """Ab wie vielen Runden gestrichen wird; ranking = Gruppe (Gesamtwertung) oder Serie."""
+    per_group = {**DEFAULT_SETTINGS["drop_min_rounds"], **(settings.get("drop_min_rounds") or {})}
+    return int(per_group.get(ranking, 2))
+
+
 def season_data(group: str, year: int, drop: bool, gross: bool, serie: str = ""):
     rounds = repo.rounds(group=group, year=year)
     if serie:
         rounds = [r for r in rounds if serie in r.get("series", [])]
     courses = {c["id"]: c for c in repo.courses()}
     rounds = [r for r in rounds if r["players"] and (r.get("totals_only") or r["course_id"] in courses)]
+    settings = repo.settings()
     rows = season_ranking(rounds, courses, drop_worst=drop, gross=gross,
-                          missed_counts_as_zero=repo.settings()["missed_round_counts_as_zero"])
+                          missed_counts_as_zero=settings["missed_round_counts_as_zero"],
+                          min_rounds_for_drop=min_rounds_for_drop(settings, serie or group))
     return rounds, courses, rows
 
 
@@ -644,6 +652,7 @@ def season(request: Request, group: str, year: int, streich: int = 0, brutto: in
     rounds, courses, rows = season_data(group, year, drop, gross, serie)
     return render(request, "season.html", group=group, year=year, rounds=rounds, courses=courses, rows=rows,
                   drop=drop, gross=gross, serie=serie,
+                  min_drop=min_rounds_for_drop(repo.settings(), serie or group),
                   share_text=pdf.season_text(group, year, rows, drop, gross, serie))
 
 

@@ -116,10 +116,12 @@ class SeasonRow:
 
 
 def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: bool = False,
-                   missed_counts_as_zero: bool = True, gross: bool = False) -> list[SeasonRow]:
+                   missed_counts_as_zero: bool = True, gross: bool = False,
+                   min_rounds_for_drop: int = 2) -> list[SeasonRow]:
     """Summe der Stableford-Punkte (netto oder brutto) über alle Runden.
 
-    drop_worst: das schlechteste Resultat wird gestrichen (nur wenn mind. 2 Runden gewertet).
+    drop_worst: das schlechteste Resultat wird gestrichen, sobald mind. min_rounds_for_drop
+    Runden in der Wertung sind (Standard 2, beim C-Club 4).
     missed_counts_as_zero: eine verpasste Runde zählt als 0 Punkte und ist damit
     das Streichresultat; sonst wird nur unter gespielten Runden gestrichen.
     """
@@ -142,7 +144,7 @@ def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: boo
         sr.played = sum(1 for x in sr.results if x is not None)
         sr.best = max((x for x in sr.results if x is not None), default=0)
         counted = list(enumerate(sr.results))
-        if drop_worst and n >= 2:
+        if drop_worst and n >= max(2, min_rounds_for_drop):
             if missed_counts_as_zero:
                 cands = [(i, x or 0) for i, x in counted]
             else:

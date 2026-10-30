@@ -90,3 +90,13 @@ def test_season_ranking_drop_worst():
     assert [(r.name, r.total) for r in rows] == [("A", 72), ("B", 54)]
     rows = season_ranking(rounds, courses, drop_worst=True, missed_counts_as_zero=False)
     assert [(r.name, r.total) for r in rows] == [("A", 72), ("B", 36)]
+
+
+def test_season_drop_only_from_min_rounds():
+    courses = {"c1": COURSE}
+    three = [_round("1", [("A", 0)]), _round("2", [("A", 1)]), _round("3", [("A", 0)])]
+    rows = season_ranking(three, courses, drop_worst=True, min_rounds_for_drop=4)
+    assert rows[0].total == 90 and rows[0].dropped_index is None
+    four = three + [_round("4", [("A", 0)])]
+    rows = season_ranking(four, courses, drop_worst=True, min_rounds_for_drop=4)
+    assert rows[0].total == 108 and rows[0].dropped_index == 1
