@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 import uuid
 from difflib import SequenceMatcher
 
-from .storage import Storage, read_json, write_json
+from .storage import Storage, read_json, read_many, write_json
 
 DEFAULT_SETTINGS = {
     "groups": ["C-Club", "Pinseekers"],
@@ -100,11 +101,11 @@ class Repo:
     # Runden
     def rounds(self, group: str | None = None, year: int | None = None) -> list[dict]:
         out = []
-        for name in self.st.list("runden"):
-            if name.endswith(".json"):
-                r = read_json(self.st, f"runden/{name}", None)
-                if r and (not group or r["group"] == group) and (not year or r["date"].startswith(str(year))):
-                    out.append(r)
+        paths = [f"runden/{name}" for name in self.st.list("runden") if name.endswith(".json")]
+        for raw in read_many(self.st, paths):
+            r = json.loads(raw) if raw else None
+            if r and (not group or r["group"] == group) and (not year or r["date"].startswith(str(year))):
+                out.append(r)
         return sorted(out, key=lambda r: (r["date"], r["id"]))
 
     def round(self, rid: str) -> dict | None:
