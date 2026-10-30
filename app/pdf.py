@@ -79,15 +79,16 @@ def day_pdf(group: str, rnd: dict, course: dict, rows: list[DayRow], teams: list
     headers = ["Rang", "Name", "HCP", "Spiel-HCP", "Netto", "Brutto", "Schläge"]
 
     def line(rank, r):
-        return [str(rank), r.name, f"{r.hcp_index:.1f}", str(r.playing_hcp), str(r.net), str(r.gross),
-                str(r.strokes or "-")]
+        return [str(rank), r.name, f"{r.hcp_index:.1f}", "-" if r.playing_hcp is None else str(r.playing_hcp),
+                str(r.net), "-" if r.gross is None else str(r.gross), str(r.strokes or "-")]
 
     pdf.heading("Netto")
     pdf.table(headers, widths, [line(r.rank, r) for r in rows], aligns, bold_cols={4})
-    pdf.ln(5)
-    pdf.heading("Brutto")
-    by_gross = sorted(rows, key=lambda r: (r.gross_rank, r.name.lower()))
-    pdf.table(headers, widths, [line(r.gross_rank, r) for r in by_gross], aligns, bold_cols={5})
+    if not rnd.get("totals_only"):
+        pdf.ln(5)
+        pdf.heading("Brutto")
+        by_gross = sorted(rows, key=lambda r: (r.gross_rank, r.name.lower()))
+        pdf.table(headers, widths, [line(r.gross_rank, r) for r in by_gross], aligns, bold_cols={5})
     if teams:
         pdf.ln(5)
         pdf.heading(team_title(rnd))
@@ -136,9 +137,10 @@ def day_text(group: str, rnd: dict, course: dict, rows: list[DayRow], teams: lis
     lines = [f"*{rnd.get('title') or 'Tagesrangliste'} {group}*",
              f"{course['name']}, {fmt_date(rnd['date'])}", "", "*Netto*"]
     lines += [f"{r.rank}. {r.name} – {r.net} P." for r in rows]
-    lines += ["", "*Brutto*"]
-    lines += [f"{r.gross_rank}. {r.name} – {r.gross} P."
-              for r in sorted(rows, key=lambda r: (r.gross_rank, r.name.lower()))]
+    if not rnd.get("totals_only"):
+        lines += ["", "*Brutto*"]
+        lines += [f"{r.gross_rank}. {r.name} – {r.gross} P."
+                  for r in sorted(rows, key=lambda r: (r.gross_rank, r.name.lower()))]
     if teams:
         lines += ["", f"*{team_title(rnd)}*"]
         lines += [f"{t['rank']}. {t['name']} ({', '.join(t['names'])}) – {t['total']} P." for t in teams]

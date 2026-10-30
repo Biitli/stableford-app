@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Neue Runde</h1>
+<p class="muted">Nur Punktetotale ohne Scorekarten? <a href="/runden/nachtragen?gruppe={{ group|urlencode }}">Resultate nachtragen</a></p>
 {% if not courses %}
 <div class="info">Zuerst einen <a href="/plaetze">Platz erfassen</a>.</div>
 {% else %}

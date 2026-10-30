@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hmac
 import os
+import re
 from datetime import date
 from pathlib import Path
 from urllib.parse import quote
@@ -371,8 +372,66 @@ def create_round(group: str = Form(...), date_: str = Form(..., alias="date"), c
 
 def round_ctx(rid: str):
     rnd = repo.round(rid)
+    if rnd and rnd.get("totals_only"):
+        return rnd, {"name": rnd.get("course_name") or "?", "holes": [], "tees": []}
     course = repo.course(rnd["course_id"]) if rnd else None
     return rnd, course
+
+
+# Resultate ohne Scorekarten nachtragen (z.B. aus einer bestehenden Excel-Liste)
+TOTAL_LINE = re.compile(r"^(?P<name>.*?[^\d\s*])[\s;,:|]+(?P<net>\d{1,2})\*?(?:[\s;,:|]+(?P<gross>\d{1,2})\*?)?\s*$")
+
+
+def parse_totals(text: str) -> tuple[list[tuple[str, int, int | None]], list[str]]:
+    """Zeilen «Name Netto [Brutto]» lesen. Gibt Resultate und nicht lesbare Zeilen zurück."""
+    out, bad = [], []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        m = TOTAL_LINE.match(line)
+        if not m:
+            bad.append(line)
+            continue
+        gross = m.group("gross")
+        out.append((m.group("name").strip(" -:;,|"), int(m.group("net")), int(gross) if gross else None))
+    return out, bad
+
+
+@app.get("/runden/nachtragen", response_class=HTMLResponse)
+def totals_form(request: Request, gruppe: str = ""):
+    return render(request, "totals.html", group=gruppe, error="", form={}, today=date.today().isoformat())
+
+
+@app.post("/runden/nachtragen", response_class=HTMLResponse)
+async def totals_save(request: Request):
+    f = await request.form()
+    form = {k: str(v) for k, v in f.items() if k != "series"}
+    group = form.get("group", "")
+    series = [str(x) for x in f.getlist("series") if str(x) in series_of(group)]
+    results, bad = parse_totals(form.get("results", ""))
+    error = ""
+    if not form.get("date") or not form.get("course_name", "").strip():
+        error = "Bitte Datum und Platz angeben."
+    elif bad:
+        error = "Diese Zeilen konnte ich nicht lesen: " + " / ".join(bad)
+    elif not results:
+        error = "Bitte mindestens eine Zeile «Name Punkte» eingeben."
+    if error:
+        return render(request, "totals.html", group=group, error=error, form=form, series_sel=series,
+                      today=date.today().isoformat())
+    players = []
+    for name, net, gross in results:
+        m, score = repo.match_member(name, group)
+        if m and score >= 0.8:
+            players.append({"name": m["name"], "member_id": m["id"], "hcp_index": m.get("hcp"),
+                            "net": net, "gross": gross, "name_in_list": name})
+        else:
+            players.append({"name": name, "member_id": None, "hcp_index": None, "net": net, "gross": gross})
+    r = repo.save_round({"group": group, "date": form["date"], "course_id": "", "tee": "",
+                         "course_name": form["course_name"].strip(), "title": form.get("title", "").strip(),
+                         "totals_only": True, "allowance": 1.0, "players": players, "series": series})
+    return back(f"/runden/{r['id']}")
 
 
 @app.get("/runden/{rid}", response_class=HTMLResponse)
@@ -545,7 +604,7 @@ def season_data(group: str, year: int, drop: bool, gross: bool, serie: str = "")
     if serie:
         rounds = [r for r in rounds if serie in r.get("series", [])]
     courses = {c["id"]: c for c in repo.courses()}
-    rounds = [r for r in rounds if r["players"] and r["course_id"] in courses]
+    rounds = [r for r in rounds if r["players"] and (r.get("totals_only") or r["course_id"] in courses)]
     rows = season_ranking(rounds, courses, drop_worst=drop, gross=gross,
                           missed_counts_as_zero=repo.settings()["missed_round_counts_as_zero"])
     return rounds, courses, rows

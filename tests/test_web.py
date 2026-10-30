@@ -302,3 +302,22 @@ def test_better_ball(client):
     # Dreierteam bei Better Ball wird abgewiesen.
     response = client.post(url + "/teams", data={"team_size": "2", "team_0": "X", "team_1": "X", "team_2": "X"})
     assert "genau 2 Spieler" in response.text
+
+
+def test_totals_only_round(client):
+    from app.main import parse_totals
+
+    assert parse_totals("Beat Bieler 32\nHans W. Schlatter\t21*\n\nX 27x") == (
+        [("Beat Bieler", 32, None), ("Hans W. Schlatter", 21, None)], ["X 27x"])
+    r = client.post("/runden/nachtragen", data={
+        "group": "C-Club", "date": "2026-06-01", "course_name": "OSCG", "series": "C-Club Classic",
+        "results": "Andreas Holzer 27\nBeat Bieler 32"})
+    assert r.status_code == 200 and "Nachgetragene Runde" in r.text and "OSCG" in r.text
+    rnd = next(x for x in main.repo.rounds() if x.get("totals_only"))
+    assert rnd["series"] == ["C-Club Classic"] and [p["net"] for p in rnd["players"]] == [27, 32]
+    assert client.get(f"/runden/{rnd['id']}/pdf").status_code == 200
+    r = client.get("/jahr/C-Club/2026?serie=C-Club%20Classic")
+    assert "Beat Bieler" in r.text and "32" in r.text
+    r = client.post("/runden/nachtragen", data={"group": "C-Club", "date": "2026-06-01",
+                                                "course_name": "OSCG", "results": "nur Text"})
+    assert "nicht lesen" in r.text

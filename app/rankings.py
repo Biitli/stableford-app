@@ -33,9 +33,9 @@ class DayRow:
     name: str
     member_id: str | None
     hcp_index: float
-    playing_hcp: int
+    playing_hcp: int | None  # None bei nachgetragenen Totalen
     net: int
-    gross: int
+    gross: int | None
     strokes: int | None
     countback: tuple
     gross_rank: int = 0
@@ -45,11 +45,17 @@ def daily_ranking(rnd: dict, course: dict) -> list[DayRow]:
     allowance = float(rnd.get("allowance", 1.0))
     rows = []
     for p in rnd["players"]:
+        if p.get("net") is not None:
+            # Nachgetragenes Resultat ohne Scorekarte: nur Totale bekannt
+            net = int(p["net"])
+            rows.append(DayRow(0, p["name"], p.get("member_id"), float(p.get("hcp_index") or 0), None,
+                               net, p.get("gross"), None, (net,)))
+            continue
         res = score_player(p, course, p.get("tee") or rnd["tee"], allowance)
         rows.append(DayRow(0, p["name"], p.get("member_id"), float(p["hcp_index"]), res.playing_hcp,
                            res.net_total, res.gross_total, res.gross_strokes, res.countback()))
     _assign_ranks(rows, key=lambda r: r.countback, attr="rank")
-    _assign_ranks(rows, key=lambda r: (r.gross, r.net), attr="gross_rank")
+    _assign_ranks(rows, key=lambda r: (-1 if r.gross is None else r.gross, r.net), attr="gross_rank")
     rows.sort(key=lambda r: r.rank)
     return rows
 
@@ -101,7 +107,7 @@ def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: boo
     players: dict[str, SeasonRow] = {}
     n = len(rounds)
     for i, rnd in enumerate(rounds):
-        for row in daily_ranking(rnd, courses[rnd["course_id"]]):
+        for row in daily_ranking(rnd, courses.get(rnd.get("course_id"))):
             key = row.member_id or row.name.lower()
             sr = players.get(key)
             if not sr:
@@ -161,6 +167,8 @@ def team_ranking(rnd: dict, course: dict) -> list[dict]:
 
     Bei gleichem Total entscheiden wie im Einzel die letzten 9, 6, 3 und 1 Löcher.
     """
+    if rnd.get("totals_only"):
+        return []
     size = rnd.get("team_size", 3)
     rows = []
     for team in rnd.get("teams", []):

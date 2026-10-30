@@ -2,7 +2,8 @@
 {% block content %}
 <h1>{{ rnd.title or "Tagesrangliste" }} – {{ rnd.group }}</h1>
 <p class="muted">{{ rnd.date|datum }} · {{ course.name }}{% if rnd.allowance != 1 %} · {{ (rnd.allowance*100)|round|int }} % HCP{% endif %}</p>
-{% if rows %}<p class="noprint"><a class="btn sec" href="#teams">👥 Teamwertung (Better Ball / 2 Best of 3 / 4)</a></p>{% endif %}
+{% if rnd.totals_only %}<p class="info">Nachgetragene Runde: nur Punktetotale, keine Scorekarten.</p>{% endif %}
+{% if rows and not rnd.totals_only %}<p class="noprint"><a class="btn sec" href="#teams">👥 Teamwertung (Better Ball / 2 Best of 3 / 4)</a></p>{% endif %}
 {% if series %}
 <form method="post" action="/runden/{{ rnd.id }}/serien" class="card noprint">
   {% for s in series %}
@@ -11,6 +12,7 @@
 </form>
 {% endif %}
 
+{% if not rnd.totals_only %}
 <div class="card noprint">
   <h2>Scorekarten hinzufügen</h2>
   {% if ai_available %}
@@ -25,8 +27,10 @@
   {% endif %}
   <a class="btn sec" href="/runden/{{ rnd.id }}/spieler">Spieler von Hand erfassen</a>
 </div>
+{% endif %}
 
 {% if rows %}
+{% if not rnd.totals_only %}
 <section id="teams" class="card">
   <h2>Teamwertung</h2>
   <p>4-Ball Better Ball: pro Loch zählt das bessere Netto-Stableford-Resultat der beiden Spieler. 2 Best of 3 / 4: pro Loch zählen die zwei höchsten. Das Teamtotal ist die Summe über alle Löcher. Aufgehobene Löcher zählen als 0 Punkte.</p>
@@ -56,6 +60,7 @@
   <p class="muted">Die Punkte pro Loch sind netto. Bei gleichem Total entscheiden die letzten 9, 6, 3 und 1 Löcher. Die Teamwertung ist auch im PDF und im WhatsApp-Text der Runde.</p>
   {% endif %}
 </section>
+{% endif %}
 
 <h2>Netto</h2>
 <div class="card scroll">
@@ -64,12 +69,13 @@
   {% for r in rows %}
   <tr>
     <td class="num">{{ r.rank }}</td><td>{{ r.name }}</td><td class="num">{{ "%.1f"|format(r.hcp_index) }}</td>
-    <td class="num">{{ r.playing_hcp }}</td><td class="num"><b>{{ r.net }}</b></td><td class="num">{{ r.gross }}</td>
+    <td class="num">{{ "–" if r.playing_hcp is none else r.playing_hcp }}</td><td class="num"><b>{{ r.net }}</b></td><td class="num">{{ "–" if r.gross is none else r.gross }}</td>
     <td class="num">{{ r.strokes or "–" }}</td>
   </tr>
   {% endfor %}
 </table>
 </div>
+{% if not rnd.totals_only %}
 <h2>Brutto</h2>
 <div class="card scroll">
 <table>
@@ -82,6 +88,7 @@
   {% endfor %}
 </table>
 </div>
+{% endif %}
 <div class="noprint">
   <a class="btn" href="/runden/{{ rnd.id }}/pdf" target="_blank">PDF / Drucken</a>
   <button class="wa" onclick="shareRanking('/runden/{{ rnd.id }}/pdf', 'Rangliste_{{ rnd.date }}.pdf', {{ share_text|tojson|forceescape }})">Per WhatsApp teilen</button>
@@ -90,6 +97,7 @@
   <a class="btn sec" href="/jahr/{{ rnd.group|urlencode }}/{{ rnd.date[:4] }}">Jahreswertung {{ rnd.date[:4] }}</a>
 </div>
 
+{% if not rnd.totals_only %}
 <div class="card noprint">
   <h2>Erfasste Karten</h2>
   <table>
@@ -106,6 +114,7 @@
   {% endfor %}
   </table>
 </div>
+{% endif %}
 {% endif %}
 <form class="noprint" method="post" action="/runden/{{ rnd.id }}/loeschen" onsubmit="return confirm('Ganze Runde löschen?')"><button class="danger">Runde löschen</button></form>
 {% endblock %}
