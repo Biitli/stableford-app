@@ -30,7 +30,7 @@
 <p class="muted">{{ "Brutto" if gross else "Netto" }}punkte Stableford.{% if drop %} Durchgestrichen = Streichresultat{% if settings.missed_round_counts_as_zero %} (eine verpasste Runde zählt als 0 und wird zuerst gestrichen){% endif %}.{% endif %}</p>
 </div>
 <div class="noprint">
-  <a class="btn" href="/jahr/{{ group|urlencode }}/{{ year }}/pdf{{ q }}" target="_blank">PDF / Drucken</a>
+  <a class="btn" href="/jahr/{{ group|urlencode }}/{{ year }}/pdf/ansicht{{ q }}">PDF / Drucken</a>
   <button class="wa" onclick="shareRanking('/jahr/{{ group|urlencode }}/{{ year }}/pdf{{ q }}', '{{ serie or "Jahreswertung" }}_{{ year }}.pdf', {{ share_text|tojson|forceescape }})">Per WhatsApp teilen</button>
   <button class="sec" onclick="shareText({{ share_text|tojson|forceescape }})">Als Text teilen</button>
 </div>

@@ -64,6 +64,10 @@ def test_full_flow(client, monkeypatch, tmp_path):
 
     r = client.get(f"/runden/{rid}/pdf")
     assert r.headers["content-type"] == "application/pdf"
+    v = client.get(f"/runden/{rid}/pdf/ansicht")
+    assert v.status_code == 200 and "Zurück zur App" in v.text and f'href="/runden/{rid}"' in v.text
+    v = client.get("/jahr/C-Club/2026/pdf/ansicht?streich=1&brutto=0")
+    assert v.status_code == 200 and 'href="/jahr/C-Club/2026?streich=1&amp;brutto=0"' in v.text
     assert list((tmp_path / "ranglisten" / "c-club").iterdir())
 
     r = client.get("/jahr/C-Club/2026?streich=1")

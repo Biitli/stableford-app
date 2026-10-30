@@ -619,6 +619,13 @@ def round_pdf(rid: str):
     return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{fname}"'})
 
 
+@app.get("/runden/{rid}/pdf/ansicht", response_class=HTMLResponse)
+def round_pdf_view(request: Request, rid: str):
+    rnd, _ = round_ctx(rid)
+    return render(request, "pdf_view.html", title=rnd.get("title") or "Tagesrangliste",
+                  pdf_url=f"/runden/{rid}/pdf", back_url=f"/runden/{rid}")
+
+
 # Jahreswertung
 def season_data(group: str, year: int, drop: bool, gross: bool, serie: str = ""):
     rounds = repo.rounds(group=group, year=year)
@@ -649,6 +656,14 @@ def season_pdf(group: str, year: int, streich: int = 0, brutto: int = 0, serie: 
              f"{'_Streichresultat' if drop else ''}.pdf")
     repo.save_pdf(group, fname, data)
     return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{fname}"'})
+
+
+@app.get("/jahr/{group}/{year}/pdf/ansicht", response_class=HTMLResponse)
+def season_pdf_view(request: Request, group: str, year: int):
+    q = f"?{request.url.query}" if request.url.query else ""
+    base = f"/jahr/{quote(group, safe='')}/{year}"
+    return render(request, "pdf_view.html", title=f"Jahreswertung {year}",
+                  pdf_url=f"{base}/pdf{q}", back_url=f"{base}{q}")
 
 
 # Dropbox verbinden: liefert den Refresh-Token, der danach bei Render eingetragen wird

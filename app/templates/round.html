@@ -108,7 +108,7 @@
 </div>
 {% endif %}
 <div class="noprint">
-  <a class="btn" href="/runden/{{ rnd.id }}/pdf" target="_blank">PDF / Drucken</a>
+  <a class="btn" href="/runden/{{ rnd.id }}/pdf/ansicht">PDF / Drucken</a>
   <button class="wa" onclick="shareRanking('/runden/{{ rnd.id }}/pdf', 'Rangliste_{{ rnd.date }}.pdf', {{ share_text|tojson|forceescape }})">Per WhatsApp teilen</button>
   <button class="sec" onclick="shareText({{ share_text|tojson|forceescape }})">Als Text teilen</button>
   <p class="muted">Jedes erstellte PDF wird automatisch in der Dropbox abgelegt.</p>
