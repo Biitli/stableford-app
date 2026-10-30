@@ -2,7 +2,7 @@ services:
   - type: web
     name: stableford-app
     runtime: python
-    plan: free
+    plan: 0.5c-512mb
     region: frankfurt
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
