@@ -15,11 +15,13 @@
 <table>
   <tr><th class="num">Rang</th><th>Name</th>
     {% for r in rounds %}<th class="num"><a href="/runden/{{ r.id }}">{{ (r.date|datum)[:5] }}</a></th>{% endfor %}
+    <th class="num">Bird</th><th class="num">NTP</th><th class="num">LD</th>
     <th class="num">Runden</th>
     {% if drop %}<th class="num">Total</th><th class="num">Streich</th><th class="num">Endtotal</th>{% else %}<th class="num">Total</th>{% endif %}</tr>
   {% for s in rows %}
   <tr><td class="num">{{ s.rank }}</td><td>{{ s.name }}</td>
     {% for x in s.results %}<td class="num {% if loop.index0 == s.dropped_index %}struck{% endif %}">{{ "–" if x is none else x }}</td>{% endfor %}
+    <td class="num">{{ s.birdies or "" }}</td><td class="num">{{ s.ntp or "" }}</td><td class="num">{{ s.ld or "" }}</td>
     <td class="num">{{ s.played }}</td>
     {% if drop %}<td class="num">{{ s.raw_total }}</td><td class="num">{{ "–" if not s.dropped_value else "−" ~ s.dropped_value }}</td>{% endif %}
     <td class="num"><b>{{ s.total }}</b></td></tr>

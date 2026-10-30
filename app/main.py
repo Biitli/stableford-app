@@ -434,6 +434,26 @@ async def totals_save(request: Request):
     return back(f"/runden/{r['id']}")
 
 
+@app.post("/runden/{rid}/extras")
+async def save_extras(request: Request, rid: str):
+    """Birdies, Nearest to the Pin und Longest Drive pro Spieler speichern."""
+    rnd = repo.round(rid)
+    if not rnd:
+        return back("/")
+    f = await request.form()
+
+    def num(key):
+        v = str(f.get(key, "")).strip()
+        return int(v) if v.isdigit() else None
+
+    for i, p in enumerate(rnd["players"]):
+        p["birdies"] = num(f"birdies_{i}")  # leer = bei Scorekarten automatisch zählen
+        p["ntp"] = num(f"ntp_{i}") or 0
+        p["ld"] = num(f"ld_{i}") or 0
+    repo.save_round(rnd)
+    return back(f"/runden/{rid}#extras")
+
+
 @app.get("/runden/{rid}", response_class=HTMLResponse)
 def show_round(request: Request, rid: str, team_error: str = ""):
     rnd, course = round_ctx(rid)
@@ -444,6 +464,7 @@ def show_round(request: Request, rid: str, team_error: str = ""):
     return render(request, "round.html", rnd=rnd, course=course, rows=rows, series=series_of(rnd["group"]),
                   share_text=pdf.day_text(rnd["group"], rnd, course, rows, team_rows),
                   team_rows=team_rows, team_error=team_error,
+                  auto_birdies={r.name: r.birdies for r in rows},
                   team_format=TEAM_FORMATS.get(rnd.get("team_size", 3), ""),
                   assignments={i: t["name"] for t in rnd.get("teams", []) for i in t["players"]})
 

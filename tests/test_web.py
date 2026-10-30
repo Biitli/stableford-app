@@ -321,3 +321,9 @@ def test_totals_only_round(client):
     r = client.post("/runden/nachtragen", data={"group": "C-Club", "date": "2026-06-01",
                                                 "course_name": "OSCG", "results": "nur Text"})
     assert "nicht lesen" in r.text
+    # Birdies, NTP, LD pro Runde erfassen; Total in der Jahreswertung
+    client.post(f"/runden/{rnd['id']}/extras", data={"birdies_1": "1", "ntp_1": "1", "ld_0": "1"})
+    saved = main.repo.round(rnd["id"])
+    assert [(p["birdies"], p["ntp"], p["ld"]) for p in saved["players"]] == [(None, 0, 1), (1, 1, 0)]
+    r = client.get("/jahr/C-Club/2026?serie=C-Club%20Classic")
+    assert "<th class=\"num\">NTP</th>" in r.text

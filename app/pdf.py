@@ -74,13 +74,14 @@ def team_title(rnd: dict) -> str:
 def day_pdf(group: str, rnd: dict, course: dict, rows: list[DayRow], teams: list[dict] = ()) -> bytes:
     pdf = _Pdf(rnd.get("title") or "Tagesrangliste",
                f"{group} - {course['name']} - {fmt_date(rnd['date'])}")
-    widths = [11, 52, 13, 17, 15, 15, 15]
-    aligns = "CLCCCCC"
-    headers = ["Rang", "Name", "HCP", "Spiel-HCP", "Netto", "Brutto", "Schläge"]
+    widths = [11, 46, 12, 16, 14, 14, 15, 11, 11, 10]
+    aligns = "CLCCCCCCCC"
+    headers = ["Rang", "Name", "HCP", "Spiel-HCP", "Netto", "Brutto", "Schläge", "Bird", "NTP", "LD"]
 
     def line(rank, r):
         return [str(rank), r.name, f"{r.hcp_index:.1f}", "-" if r.playing_hcp is None else str(r.playing_hcp),
-                str(r.net), "-" if r.gross is None else str(r.gross), str(r.strokes or "-")]
+                str(r.net), "-" if r.gross is None else str(r.gross), str(r.strokes or "-"),
+                str(r.birdies or ""), str(r.ntp or ""), str(r.ld or "")]
 
     pdf.heading("Netto")
     pdf.table(headers, widths, [line(r.rank, r) for r in rows], aligns, bold_cols={4})
@@ -109,9 +110,9 @@ def season_pdf(group: str, year: int, rounds: list[dict], rows: list[SeasonRow],
         title += " (mit Streichresultat)"
     pdf = _Pdf(title, f"{group} - {len(rounds)} Runde(n)")
     n = len(rounds)
-    tail = ["Runden", "Total", "Streich", "Endtotal"] if drop_worst else ["Runden", "Total"]
-    tail_w = [13, 13, 13, 15] if drop_worst else [13, 14]
-    name_w = 40
+    tail = ["Bird", "NTP", "LD"] + (["Runden", "Total", "Streich", "Endtotal"] if drop_worst else ["Runden", "Total"])
+    tail_w = [9, 9, 8] + ([13, 13, 13, 15] if drop_worst else [13, 14])
+    name_w = 36
     rw = min(14, (180 - 11 - name_w - sum(tail_w)) / max(n, 1))
     font = FONT if rw >= 10 else 6.5
     headers = ["Rang", "Name"] + [fmt_date(r["date"])[:5] for r in rounds] + tail
@@ -120,13 +121,13 @@ def season_pdf(group: str, year: int, rounds: list[dict], rows: list[SeasonRow],
     for ri, r in enumerate(rows):
         if r.dropped_index is not None:
             struck.add((ri, 2 + r.dropped_index))
-        end = [str(r.played)]
+        end = [str(r.birdies or ""), str(r.ntp or ""), str(r.ld or ""), str(r.played)]
         if drop_worst:
             end += [str(r.raw_total), "-" if not r.dropped_value else f"-{r.dropped_value}"]
         data.append([str(r.rank), r.name, *("-" if x is None else str(x) for x in r.results), *end, str(r.total)])
     pdf.table(headers, widths, data, "CL" + "C" * (n + len(tail)), bold_cols={1 + n + len(tail)}, struck=struck,
               font=font)
-    note = f"{'Brutto' if gross else 'Netto'}punkte Stableford."
+    note = f"{'Brutto' if gross else 'Netto'}punkte Stableford. Bird, NTP, LD: Anzahl über alle Runden."
     if drop_worst:
         note += " Werte in Klammern sind gestrichen."
     pdf.note(note)

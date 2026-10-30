@@ -39,6 +39,22 @@ class DayRow:
     strokes: int | None
     countback: tuple
     gross_rank: int = 0
+    birdies: int = 0  # Birdies oder besser
+    ntp: int = 0  # Nearest to the Pin
+    ld: int = 0  # Longest Drive
+
+
+def _count(v) -> int:
+    try:
+        return max(0, int(v or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def extras_of(p: dict, auto_birdies: int = 0) -> dict:
+    """Birdies, NTP, LD eines Spielers. Birdies: von Hand erfasst, sonst aus der Scorekarte gezählt."""
+    b = p.get("birdies")
+    return {"birdies": auto_birdies if b is None else _count(b), "ntp": _count(p.get("ntp")), "ld": _count(p.get("ld"))}
 
 
 def daily_ranking(rnd: dict, course: dict) -> list[DayRow]:
@@ -49,11 +65,11 @@ def daily_ranking(rnd: dict, course: dict) -> list[DayRow]:
             # Nachgetragenes Resultat ohne Scorekarte: nur Totale bekannt
             net = int(p["net"])
             rows.append(DayRow(0, p["name"], p.get("member_id"), float(p.get("hcp_index") or 0), None,
-                               net, p.get("gross"), None, (net,)))
+                               net, p.get("gross"), None, (net,), **extras_of(p)))
             continue
         res = score_player(p, course, p.get("tee") or rnd["tee"], allowance)
         rows.append(DayRow(0, p["name"], p.get("member_id"), float(p["hcp_index"]), res.playing_hcp,
-                           res.net_total, res.gross_total, res.gross_strokes, res.countback()))
+                           res.net_total, res.gross_total, res.gross_strokes, res.countback(), **extras_of(p, sum(1 for g in res.gross_points if g >= 3))))
     _assign_ranks(rows, key=lambda r: r.countback, attr="rank")
     _assign_ranks(rows, key=lambda r: (-1 if r.gross is None else r.gross, r.net), attr="gross_rank")
     rows.sort(key=lambda r: r.rank)
@@ -83,6 +99,9 @@ class SeasonRow:
     dropped_index: int | None = None
     best: int = 0
     extra: dict = field(default_factory=dict)
+    birdies: int = 0
+    ntp: int = 0
+    ld: int = 0
 
     @property
     def raw_total(self) -> int:
@@ -114,6 +133,9 @@ def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: boo
                 sr = SeasonRow(0, row.name, key, [None] * n, [None] * n, 0, 0, 0)
                 players[key] = sr
             sr.results[i] = row.gross if gross else row.net
+            sr.birdies += row.birdies
+            sr.ntp += row.ntp
+            sr.ld += row.ld
             sr.gross_results[i] = row.gross
 
     for sr in players.values():
