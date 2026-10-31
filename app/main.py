@@ -159,8 +159,12 @@ def set_hcp(m: dict, hcp: float | None) -> bool:
 
 def members_page(request: Request, gruppe: str = "", edit: str | None = None, info: str | None = None):
     ms = [m for m in repo.members() if not gruppe or gruppe in m.get("groups", [])]
-    return render(request, "members.html", members=ms, group=gruppe, edit=repo.member(edit) if edit else None,
-                  info=info)
+    em = repo.member(edit) if edit else None
+    merge_opts = []
+    if em:
+        merge_opts = [(f"m:{m['id']}", m["name"]) for m in repo.members() if m["id"] != em["id"]]
+        merge_opts += [(f"n:{n}", f"{n} (ohne Mitglied, nur in Runden)") for n in repo.unlinked_names()]
+    return render(request, "members.html", members=ms, group=gruppe, edit=em, info=info, merge_opts=merge_opts)
 
 
 @app.get("/mitglieder", response_class=HTMLResponse)
@@ -244,6 +248,14 @@ async def import_members(request: Request, group: str = Form(...), file: UploadF
     repo.save_members(changed)
     info = error or f"{added} neu erfasst, {updated} aktualisiert ({group})."
     return members_page(request, group, None, info)
+
+
+@app.post("/mitglieder/{mid}/zusammenlegen")
+def merge_member(mid: str, source: str = Form(""), gruppe: str = Form("")):
+    m = repo.member(mid)
+    n = repo.merge_into(mid, source) if m else 0
+    msg = f"Zusammengelegt unter {m['name']}: {n} Runde(n) angepasst." if m and source else "Nichts zusammengelegt."
+    return back(f"/mitglieder?gruppe={quote(gruppe)}&info={quote(msg)}")
 
 
 @app.post("/mitglieder/{mid}/loeschen")

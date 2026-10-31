@@ -56,6 +56,22 @@
   </form>
 </div>
 
+{% if edit and merge_opts %}
+<div class="card noprint">
+  <h2>Doppelten Eintrag zusammenlegen</h2>
+  <p class="muted">Ist dieselbe Person unter einem anderen Namen erfasst (z.B. «Jan» statt «Jean-Vincent»)? Wähle den anderen Eintrag: Alle seine Resultate gehören danach zu <b>{{ edit.name }}</b>, der andere Name wird als Schreibweise gespeichert und das doppelte Mitglied gelöscht.</p>
+  <form method="post" action="/mitglieder/{{ edit.id }}/zusammenlegen" class="row"
+        onsubmit="return confirm('Diesen Eintrag mit {{ edit.name }} zusammenlegen? Das lässt sich nicht rückgängig machen.')">
+    <input type="hidden" name="gruppe" value="{{ group }}">
+    <div><label>Anderer Eintrag</label><select name="source" required>
+      <option value="">– wählen –</option>
+      {% for v, label in merge_opts %}<option value="{{ v }}">{{ label }}</option>{% endfor %}
+    </select></div>
+    <button>Zusammenlegen</button>
+  </form>
+</div>
+{% endif %}
+
 <details class="card noprint">
   <summary><b>Aus Excel importieren</b></summary>
   <form method="post" action="/mitglieder/import" enctype="multipart/form-data" class="row">

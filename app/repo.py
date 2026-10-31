@@ -66,6 +66,60 @@ class Repo:
     def delete_member(self, mid: str) -> None:
         write_json(self.st, "mitglieder.json", [m for m in self.members() if m["id"] != mid])
 
+    def unlinked_names(self) -> list[str]:
+        """Spielernamen aus Runden, die keinem Mitglied zugeordnet sind."""
+        names = {}
+        for r in self.rounds():
+            for p in r.get("players", []):
+                if not p.get("member_id") and p.get("name"):
+                    names.setdefault(slug(p["name"]), p["name"])
+        return sorted(names.values(), key=str.lower)
+
+    def merge_into(self, target_id: str, source: str) -> int:
+        """Legt einen doppelten Eintrag mit dem Mitglied target_id zusammen.
+
+        source = "m:<Mitglied-ID>" (anderes Mitglied, wird danach gelöscht) oder
+        "n:<Name>" (nicht zugeordneter Name in Runden). Alle Runden werden umgeschrieben,
+        der alte Name wird als andere Schreibweise gespeichert. Gibt die Anzahl Runden zurück.
+        """
+        target = self.member(target_id)
+        kind, _, value = source.partition(":")
+        if not target or not value:
+            return 0
+        src_member = self.member(value) if kind == "m" else None
+        if kind == "m" and (not src_member or value == target_id):
+            return 0
+        old_name = src_member["name"] if src_member else value
+
+        def is_source(p: dict) -> bool:
+            if src_member:
+                return p.get("member_id") == src_member["id"]
+            return not p.get("member_id") and slug(p.get("name", "")) == slug(old_name)
+
+        changed = 0
+        for r in self.rounds():
+            hit = False
+            for p in r.get("players", []):
+                if is_source(p):
+                    p.setdefault("name_in_list", p.get("name"))
+                    p["member_id"], p["name"] = target["id"], target["name"]
+                    hit = True
+            if hit:
+                self.save_round(r)
+                changed += 1
+        aliases = target.setdefault("aliases", [])
+        for a in [old_name, *(src_member or {}).get("aliases", [])]:
+            if slug(a) != slug(target["name"]) and slug(a) not in {slug(x) for x in aliases}:
+                aliases.append(a)
+        if src_member:
+            for g in src_member.get("groups", []):
+                if g not in target.setdefault("groups", []):
+                    target["groups"].append(g)
+        self.save_member(target)
+        if src_member:
+            self.delete_member(src_member["id"])
+        return changed
+
     def match_member(self, name: str, group: str | None = None) -> tuple[dict | None, float]:
         """Findet das Mitglied, dessen Name (oder Kürzel) am besten passt."""
         cand = [m for m in self.members() if not group or group in m.get("groups", [])] or self.members()

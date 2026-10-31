@@ -100,3 +100,26 @@ def test_season_drop_only_from_min_rounds():
     four = three + [_round("4", [("A", 0)])]
     rows = season_ranking(four, courses, drop_worst=True, min_rounds_for_drop=4)
     assert rows[0].total == 108 and rows[0].dropped_index == 1
+
+
+def test_merge_duplicate_player(tmp_path):
+    from app.repo import Repo
+    from app.storage import LocalStorage
+
+    repo = Repo(LocalStorage(tmp_path))
+    jv = repo.save_member({"name": "Jean-Vincent Kubista", "hcp": 10, "groups": ["C-Club"], "aliases": []})
+    jan = repo.save_member({"name": "Jan Kubista", "hcp": 10, "groups": ["C-Club"], "aliases": ["JK"]})
+    r1 = _round("1", [("x", 0)]); r1["players"][0].update(name=jv["name"], member_id=jv["id"])
+    r2 = _round("2", [("x", 0)]); r2["players"][0].update(name=jan["name"], member_id=jan["id"])
+    r3 = {"id": "3", "group": "C-Club", "date": "2026-05-03", "totals_only": True, "course_id": "",
+          "players": [{"name": "Kubista Jan", "member_id": None, "net": 30, "gross": 20}]}
+    for r in (r1, r2, r3):
+        r["group"] = "C-Club"
+        repo.save_round(r)
+    assert repo.unlinked_names() == ["Kubista Jan"]
+    assert repo.merge_into(jv["id"], f"m:{jan['id']}") == 1
+    assert repo.merge_into(jv["id"], "n:Kubista Jan") == 1
+    assert repo.member(jan["id"]) is None
+    assert set(repo.member(jv["id"])["aliases"]) == {"Jan Kubista", "JK", "Kubista Jan"}
+    rows = season_ranking(repo.rounds(), {"c1": COURSE})
+    assert [(r.name, r.played, r.total) for r in rows] == [("Jean-Vincent Kubista", 3, 102)]
