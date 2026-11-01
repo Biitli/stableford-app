@@ -149,7 +149,6 @@ def test_bogey_round_ranking():
     assert [(r.name, r.net, r.gross, r.rank) for r in rows] == [("A", 3, 3, 1), ("B", -2, -9, 2)]
     # Jahreswertung in Stableford-Punkten
     assert [r.sf_net for r in rows] == [21, 14]
-    season = season_ranking([rnd], {"c": course})
-    assert {r.name: r.total for r in season} == {"A": 21, "B": 14}
+    assert season_ranking([rnd], {"c": course}) == []  # zählt nicht zur Jahreswertung
     team = team_ranking(rnd, course)[0]
     assert team["holes"] == [1, 1, 1] + [0] * 6 and team["total"] == 3

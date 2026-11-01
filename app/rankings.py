@@ -141,6 +141,7 @@ def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: boo
     missed_counts_as_zero: eine verpasste Runde zählt als 0 Punkte und ist damit
     das Streichresultat; sonst wird nur unter gespielten Runden gestrichen.
     """
+    rounds = [r for r in rounds if not is_bogey(r)]  # Bogey-Runden zählen nicht zur Jahreswertung
     players: dict[str, SeasonRow] = {}
     n = len(rounds)
     for i, rnd in enumerate(rounds):

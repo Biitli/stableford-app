@@ -346,3 +346,4 @@ def test_bogey_round(client):
     assert "Bogey Competition" in r.text
     assert client.get(f"/runden/{rnd['id']}/karte/0").status_code == 200
     assert client.get(f"/runden/{rnd['id']}/pdf").status_code == 200
+    assert "Beat" not in client.get("/jahr/C-Club/2026").text  # nicht in der Jahreswertung

@@ -3,10 +3,10 @@
 {% set bog = rnd.format == 'bogey' %}
 <h1>{{ rnd.title or "Tagesrangliste" }} – {{ rnd.group }}</h1>
 <p class="muted">{{ rnd.date|datum }} · {{ course.name }}{% if rnd.allowance != 1 %} · {{ (rnd.allowance*100)|round|int }} % HCP{% endif %}{% if bog %} · <b>Bogey Competition</b> (voller HCP){% endif %}</p>
-{% if bog %}<p class="muted">Pro Loch gegen Par mit Vorgabe: gewonnen +1, geteilt 0, verloren −1 (aufgehoben = verloren). In der Jahreswertung zählen die Stableford-Punkte der Karte.</p>{% endif %}
+{% if bog %}<p class="muted">Pro Loch gegen Par mit Vorgabe: gewonnen +1, geteilt 0, verloren −1 (aufgehoben = verloren). Zählt nicht zur Jahreswertung.</p>{% endif %}
 {% if rnd.totals_only %}<p class="info">Nachgetragene Runde: nur Punktetotale, keine Scorekarten.</p>{% endif %}
 {% if rows and not rnd.totals_only %}<p class="noprint"><a class="btn sec" href="#teams">👥 Teamwertung (Better Ball / 2 Best of 3 / 4)</a></p>{% endif %}
-{% if series %}
+{% if series and not bog %}
 <form method="post" action="/runden/{{ rnd.id }}/serien" class="card noprint">
   {% for s in series %}
   <label style="font-weight:normal;font-size:1.05em"><input type="checkbox" name="series" value="{{ s }}" {% if s in (rnd.series or []) %}checked{% endif %} onchange="this.form.submit()"> ⭐ Zählt zum {{ s }}</label>

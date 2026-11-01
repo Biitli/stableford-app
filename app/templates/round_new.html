@@ -16,7 +16,7 @@
   <label>Spielform</label>
   <select name="format">
     <option value="stableford">Stableford</option>
-    <option value="bogey">Bogey Competition (voller Handicap)</option>
+    <option value="bogey">Bogey Competition (voller Handicap, ohne Jahreswertung)</option>
   </select>
   <p class="muted">Die Abschlagfarbe wählst du beim Prüfen jeder Karte. Platz fehlt? <a href="/plaetze">Hier erfassen</a>.</p>
   {% for name, g in settings.series.items() %}
@@ -26,10 +26,11 @@
     // Serien-Häkchen nur bei der passenden Gruppe zeigen
     (function () {
       const sel = document.querySelector("select[name=group]");
+      const fmt = document.querySelector("select[name=format]");
       function upd() { document.querySelectorAll(".series-opt").forEach(l => {
-        const on = l.dataset.group === sel.value; l.style.display = on ? "block" : "none";
+        const on = l.dataset.group === sel.value && fmt.value !== "bogey"; l.style.display = on ? "block" : "none";
         if (!on) l.querySelector("input").checked = false; }); }
-      sel.addEventListener("change", upd); upd();
+      sel.addEventListener("change", upd); fmt.addEventListener("change", upd); upd();
     })();
   </script>
   <label>Titel (optional)</label><input name="title" size="30" placeholder="z.B. Frühlingsturnier">

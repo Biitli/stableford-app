@@ -383,7 +383,7 @@ def create_round(group: str = Form(...), date_: str = Form(..., alias="date"), c
     r = repo.save_round({"group": group, "date": date_, "course_id": cid, "tee": tee, "title": title.strip(),
                          "format": "bogey" if bogey else "stableford",
                          "allowance": 1.0 if bogey else repo.settings()["allowance"], "players": [],
-                         "series": [x for x in series if x in series_of(group)]})
+                         "series": [] if bogey else [x for x in series if x in series_of(group)]})
     return back(f"/runden/{r['id']}")
 
 
@@ -655,7 +655,9 @@ def season_data(group: str, year: int, drop: bool, gross: bool, serie: str = "")
     if serie:
         rounds = [r for r in rounds if serie in r.get("series", [])]
     courses = {c["id"]: c for c in repo.courses()}
-    rounds = [r for r in rounds if r["players"] and (r.get("totals_only") or r["course_id"] in courses)]
+    # Bogey-Runden zählen nicht zur Jahreswertung
+    rounds = [r for r in rounds if r["players"] and r.get("format") != "bogey"
+              and (r.get("totals_only") or r["course_id"] in courses)]
     settings = repo.settings()
     rows = season_ranking(rounds, courses, drop_worst=drop, gross=gross,
                           missed_counts_as_zero=settings["missed_round_counts_as_zero"],
