@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 def round_half_up(x: float) -> int:
@@ -60,6 +60,17 @@ def hole_points(par: int, score: int | None, received: int = 0) -> int:
     return max(0, par + received - score + 2)
 
 
+def hole_bogey(par: int, score: int | None, received: int = 0) -> int:
+    """Bogey-Wertung eines Lochs gegen Par (+ Vorgabe): +1 gewonnen, 0 geteilt, -1 verloren.
+
+    Gestrichen/aufgehoben (score=None) zählt als verloren.
+    """
+    if score is None or score <= 0:
+        return -1
+    diff = par + received - score
+    return (diff > 0) - (diff < 0)
+
+
 @dataclass
 class CardResult:
     playing_hcp: int
@@ -68,6 +79,8 @@ class CardResult:
     gross_points: list[int]
     net_points: list[int]
     gross_strokes: int | None  # None, wenn ein Loch fehlt
+    net_bogey: list[int] = field(default_factory=list)  # +1/0/-1 je Loch, mit Vorgabe
+    gross_bogey: list[int] = field(default_factory=list)  # +1/0/-1 je Loch, ohne Vorgabe
 
     @property
     def gross_total(self) -> int:
@@ -100,4 +113,6 @@ def score_card(scores: list[int | None], pars: list[int], stroke_indexes: list[i
     gross = [hole_points(p, s) for p, s in zip(pars, scores)]
     net = [hole_points(p, s, r) for p, s, r in zip(pars, scores, rec)]
     total = None if any(s is None or s <= 0 for s in scores) else sum(scores)
-    return CardResult(ph, ch, rec, gross, net, total)
+    net_b = [hole_bogey(p, s, r) for p, s, r in zip(pars, scores, rec)]
+    gross_b = [hole_bogey(p, s) for p, s in zip(pars, scores)]
+    return CardResult(ph, ch, rec, gross, net, total, net_b, gross_b)

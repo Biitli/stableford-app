@@ -331,3 +331,18 @@ def test_totals_only_round(client):
     assert [(p["birdies"], p["ntp"], p["ld"]) for p in saved["players"]] == [(None, 0, 1), (1, 1, 0)]
     r = client.get("/jahr/C-Club/2026?serie=C-Club%20Classic")
     assert "<th class=\"num\">NTP</th>" in r.text
+
+
+def test_bogey_round(client):
+    main.repo.save_settings({**main.repo.settings(), "allowance": 0.95})
+    client.post("/plaetze", data=course_form())
+    c = main.repo.courses()[0]
+    r = client.post("/runden", data={"group": "C-Club", "date": "2026-11-01", "course": c["id"], "format": "bogey"})
+    rnd = main.repo.round(r.url.path.rsplit("/", 1)[1])
+    assert rnd["format"] == "bogey" and rnd["allowance"] == 1.0  # immer voller Handicap
+    rnd["players"] = [{"name": "Beat", "hcp_index": 0, "tee": "Gelb Herren", "scores": PARS}]
+    main.repo.save_round(rnd)
+    r = client.get(f"/runden/{rnd['id']}")
+    assert "Bogey Competition" in r.text
+    assert client.get(f"/runden/{rnd['id']}/karte/0").status_code == 200
+    assert client.get(f"/runden/{rnd['id']}/pdf").status_code == 200

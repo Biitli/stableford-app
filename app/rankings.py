@@ -7,6 +7,13 @@ from dataclasses import dataclass, field
 from .calc import CardResult, score_card
 
 
+FORMATS = {"stableford": "Stableford", "bogey": "Bogey Competition"}
+
+
+def is_bogey(rnd: dict) -> bool:
+    return rnd.get("format") == "bogey"
+
+
 def tee_of(course: dict, tee_name: str) -> dict:
     for t in course["tees"]:
         if t["name"] == tee_name:
@@ -42,6 +49,8 @@ class DayRow:
     birdies: int = 0  # Birdies oder besser
     ntp: int = 0  # Nearest to the Pin
     ld: int = 0  # Longest Drive
+    sf_net: int | None = None  # Stableford-Punkte für die Jahreswertung (auch bei Bogey-Runden)
+    sf_gross: int | None = None
 
 
 def _count(v) -> int:
@@ -65,11 +74,18 @@ def daily_ranking(rnd: dict, course: dict) -> list[DayRow]:
             # Nachgetragenes Resultat ohne Scorekarte: nur Totale bekannt
             net = int(p["net"])
             rows.append(DayRow(0, p["name"], p.get("member_id"), float(p.get("hcp_index") or 0), None,
-                               net, p.get("gross"), None, (net,), **extras_of(p)))
+                               net, p.get("gross"), None, (net,), **extras_of(p),
+                               sf_net=net, sf_gross=p.get("gross")))
             continue
         res = score_player(p, course, p.get("tee") or rnd["tee"], allowance)
+        if is_bogey(rnd):
+            net, gross, cb = sum(res.net_bogey), sum(res.gross_bogey), _countback(res.net_bogey)
+        else:
+            net, gross, cb = res.net_total, res.gross_total, res.countback()
         rows.append(DayRow(0, p["name"], p.get("member_id"), float(p["hcp_index"]), res.playing_hcp,
-                           res.net_total, res.gross_total, res.gross_strokes, res.countback(), **extras_of(p, sum(1 for g in res.gross_points if g >= 3))))
+                           net, gross, res.gross_strokes, cb,
+                           **extras_of(p, sum(1 for g in res.gross_points if g >= 3)),
+                           sf_net=res.net_total, sf_gross=res.gross_total))
     _assign_ranks(rows, key=lambda r: r.countback, attr="rank")
     _assign_ranks(rows, key=lambda r: (-1 if r.gross is None else r.gross, r.net), attr="gross_rank")
     rows.sort(key=lambda r: r.rank)
@@ -134,11 +150,12 @@ def season_ranking(rounds: list[dict], courses: dict[str, dict], drop_worst: boo
             if not sr:
                 sr = SeasonRow(0, row.name, key, [None] * n, [None] * n, 0, 0, 0)
                 players[key] = sr
-            sr.results[i] = row.gross if gross else row.net
+            # Jahreswertung immer in Stableford-Punkten, auch für Bogey-Runden
+            sr.results[i] = row.sf_gross if gross else row.sf_net
             sr.birdies += row.birdies
             sr.ntp += row.ntp
             sr.ld += row.ld
-            sr.gross_results[i] = row.gross
+            sr.gross_results[i] = row.sf_gross
 
     for sr in players.values():
         sr.played = sum(1 for x in sr.results if x is not None)
@@ -205,8 +222,12 @@ def team_ranking(rnd: dict, course: dict) -> list[dict]:
         results = [score_player(p, course, p.get("tee") or rnd["tee"], float(rnd.get("allowance", 1.0)))
                    for p in players]
         n = counted_per_hole(size)
-        holes = best_n([r.net_points for r in results], n)
-        gross_holes = best_n([r.gross_points for r in results], n)
+        if is_bogey(rnd):
+            holes = best_n([r.net_bogey for r in results], n)
+            gross_holes = best_n([r.gross_bogey for r in results], n)
+        else:
+            holes = best_n([r.net_points for r in results], n)
+            gross_holes = best_n([r.gross_points for r in results], n)
         rows.append({"name": team["name"], "names": [p["name"] for p in players],
                      "holes": holes, "total": sum(holes), "gross_holes": gross_holes, "gross": sum(gross_holes)})
     for attr, key in (("gross_rank", lambda r: (*_countback(r["gross_holes"]), r["total"])),

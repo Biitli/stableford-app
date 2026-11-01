@@ -25,6 +25,7 @@ app = FastAPI(title="Stableford")
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
 templates.env.filters["datum"] = pdf.fmt_date
+templates.env.filters["pm"] = pdf.signed
 
 TEE_COLORS = {"weiss": "#ffffff", "weiß": "#ffffff", "gelb": "#f2c200", "blau": "#1e63c6", "rot": "#d32f2f",
               "schwarz": "#222222", "orange": "#f08a00", "gruen": "#2e9d48", "grün": "#2e9d48",
@@ -372,12 +373,16 @@ def series_of(group: str) -> list[str]:
 
 @app.post("/runden")
 def create_round(group: str = Form(...), date_: str = Form(..., alias="date"), course: str = Form(""),
-                 course_tee: str = Form(""), title: str = Form(""), series: list[str] = Form([])):
+                 course_tee: str = Form(""), title: str = Form(""), series: list[str] = Form([]),
+                 format_: str = Form("stableford", alias="format")):
     # Der Abschlag wird pro Spieler beim Prüfen der Karte gewählt; rnd["tee"] ist nur der Vorgabewert.
     cid, _, tee = (course_tee or course).partition("|")
     tee = tee or repo.course(cid)["tees"][0]["name"]
+    bogey = format_ == "bogey"
+    # Bogey Competition immer mit vollem Handicap (100 %)
     r = repo.save_round({"group": group, "date": date_, "course_id": cid, "tee": tee, "title": title.strip(),
-                         "allowance": repo.settings()["allowance"], "players": [],
+                         "format": "bogey" if bogey else "stableford",
+                         "allowance": 1.0 if bogey else repo.settings()["allowance"], "players": [],
                          "series": [x for x in series if x in series_of(group)]})
     return back(f"/runden/{r['id']}")
 

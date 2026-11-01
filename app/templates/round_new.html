@@ -13,6 +13,11 @@
   <select name="course" required>
     {% for c in courses %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
   </select>
+  <label>Spielform</label>
+  <select name="format">
+    <option value="stableford">Stableford</option>
+    <option value="bogey">Bogey Competition (voller Handicap)</option>
+  </select>
   <p class="muted">Die Abschlagfarbe wählst du beim Prüfen jeder Karte. Platz fehlt? <a href="/plaetze">Hier erfassen</a>.</p>
   {% for name, g in settings.series.items() %}
   <label class="series-opt" data-group="{{ g }}" style="font-weight:normal"><input type="checkbox" name="series" value="{{ name }}"> ⭐ Zählt zum {{ name }}</label>

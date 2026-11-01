@@ -123,3 +123,33 @@ def test_merge_duplicate_player(tmp_path):
     assert set(repo.member(jv["id"])["aliases"]) == {"Jan Kubista", "JK", "Kubista Jan"}
     rows = season_ranking(repo.rounds(), {"c1": COURSE})
     assert [(r.name, r.played, r.total) for r in rows] == [("Jean-Vincent Kubista", 3, 102)]
+
+
+def test_bogey_hole():
+    from app.calc import hole_bogey
+    assert hole_bogey(4, 3) == 1
+    assert hole_bogey(4, 4) == 0
+    assert hole_bogey(4, 5) == -1
+    assert hole_bogey(4, 5, received=1) == 0
+    assert hole_bogey(4, 4, received=1) == 1
+    assert hole_bogey(4, None, received=2) == -1  # aufgehoben = verloren
+
+
+def test_bogey_round_ranking():
+    from app.rankings import daily_ranking, season_ranking, team_ranking
+
+    course = {"id": "c", "holes": [{"par": 4, "si": i + 1} for i in range(9)],
+              "tees": [{"name": "Gelb", "cr": 36, "slope": 113}]}
+    # A: HCP 0, 3 Birdies, 6 Pars -> +3. B: HCP 9 (1 Schlag/Loch), immer 5 -> 0, aber 2 aufgehoben -> -2.
+    rnd = {"format": "bogey", "allowance": 1.0, "tee": "Gelb", "course_id": "c", "players": [
+        {"name": "A", "hcp_index": 0, "scores": [3, 3, 3] + [4] * 6},
+        {"name": "B", "hcp_index": 18, "scores": [5] * 7 + [None, None]},
+    ], "team_size": 2, "teams": [{"name": "T", "players": [0, 1]}]}
+    rows = daily_ranking(rnd, course)
+    assert [(r.name, r.net, r.gross, r.rank) for r in rows] == [("A", 3, 3, 1), ("B", -2, -9, 2)]
+    # Jahreswertung in Stableford-Punkten
+    assert [r.sf_net for r in rows] == [21, 14]
+    season = season_ranking([rnd], {"c": course})
+    assert {r.name: r.total for r in season} == {"A": 21, "B": 14}
+    team = team_ranking(rnd, course)[0]
+    assert team["holes"] == [1, 1, 1] + [0] * 6 and team["total"] == 3

@@ -11,6 +11,9 @@
   <tr><th>Schläge</th>{% for s in p.scores %}<td><b>{{ s or "–" }}</b></td>{% endfor %}<td>{{ res.gross_strokes or "–" }}</td></tr>
   <tr><th>Netto</th>{% for x in res.net_points %}<td>{{ x }}</td>{% endfor %}<td><b>{{ res.net_total }}</b></td></tr>
   <tr><th>Brutto</th>{% for x in res.gross_points %}<td>{{ x }}</td>{% endfor %}<td>{{ res.gross_total }}</td></tr>
+  {% if rnd.format == 'bogey' %}
+  <tr><th>Bogey</th>{% for x in res.net_bogey %}<td>{{ x|pm }}</td>{% endfor %}<td><b>{{ res.net_bogey|sum|pm }}</b></td></tr>
+  {% endif %}
 </table>
 </div>
 <a class="btn sec" href="/runden/{{ rnd.id }}">Zurück</a>

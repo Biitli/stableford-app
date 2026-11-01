@@ -6,7 +6,7 @@ from datetime import date
 
 from fpdf import FPDF
 
-from .rankings import TEAM_FORMATS, DayRow, SeasonRow
+from .rankings import TEAM_FORMATS, DayRow, SeasonRow, is_bogey
 
 FONT = 8  # Schriftgrösse der Tabellen
 ROW_H = 5
@@ -17,6 +17,13 @@ def fmt_date(iso: str) -> str:
         return date.fromisoformat(iso).strftime("%d.%m.%Y")
     except ValueError:
         return iso
+
+
+def signed(v) -> str:
+    """Bogey-Resultat mit Vorzeichen: +2, 0, -3."""
+    if v is None:
+        return "-"
+    return f"{v:+d}" if v else "0"
 
 
 def _latin(s: str) -> str:
@@ -78,9 +85,14 @@ def day_pdf(group: str, rnd: dict, course: dict, rows: list[DayRow], teams: list
     aligns = "CLCCCCCCCC"
     headers = ["Rang", "Name", "HCP", "Spiel-HCP", "Netto", "Brutto", "Schläge", "Bird", "NTP", "LD"]
 
+    bogey = is_bogey(rnd)
+    val = signed if bogey else (lambda v: "-" if v is None else str(v))
+    if bogey:
+        pdf.heading("Bogey Competition (voller Handicap)")
+
     def line(rank, r):
         return [str(rank), r.name, f"{r.hcp_index:.1f}", "-" if r.playing_hcp is None else str(r.playing_hcp),
-                str(r.net), "-" if r.gross is None else str(r.gross), str(r.strokes or "-"),
+                val(r.net), val(r.gross), str(r.strokes or "-"),
                 str(r.birdies or ""), str(r.ntp or ""), str(r.ld or "")]
 
     pdf.heading("Netto")
@@ -94,10 +106,13 @@ def day_pdf(group: str, rnd: dict, course: dict, rows: list[DayRow], teams: list
         pdf.ln(5)
         pdf.heading(team_title(rnd))
         pdf.table(["Rang", "Team", "Spieler", "Netto", "Brutto"], [11, 35, 85, 15, 15],
-                  [[str(t["rank"]), t["name"], ", ".join(t["names"]), str(t["total"]), str(t["gross"])]
+                  [[str(t["rank"]), t["name"], ", ".join(t["names"]), val(t["total"]), val(t["gross"])]
                    for t in teams], "CLLCC", bold_cols={3})
-    pdf.note("Stableford-Punkte. Netto: bei Punktgleichheit entscheiden die letzten 9, 6, 3 und 1 Löcher. "
-             "Brutto: bei Punktgleichheit entscheiden die Nettopunkte."
+    pdf.note(("Bogey Competition: pro Loch gegen Par mit vollem Handicap, gewonnen +1, geteilt 0, verloren -1 "
+              "(aufgehoben = verloren). Bei Gleichstand entscheiden die letzten 9, 6, 3 und 1 Löcher."
+              if bogey else
+              "Stableford-Punkte. Netto: bei Punktgleichheit entscheiden die letzten 9, 6, 3 und 1 Löcher. "
+              "Brutto: bei Punktgleichheit entscheiden die Nettopunkte.")
              + ((" Team: pro Loch zählt das bessere Resultat der beiden Spieler." if rnd.get("team_size") == 2
                  else " Team: pro Loch zählen die zwei besten Resultate des Teams.") if teams else ""))
     return bytes(pdf.output())
@@ -135,16 +150,19 @@ def season_pdf(group: str, year: int, rounds: list[dict], rows: list[SeasonRow],
 
 
 def day_text(group: str, rnd: dict, course: dict, rows: list[DayRow], teams: list[dict] = ()) -> str:
+    bogey = is_bogey(rnd)
+    val = signed if bogey else (lambda v: f"{v} P.")
     lines = [f"*{rnd.get('title') or 'Tagesrangliste'} {group}*",
-             f"{course['name']}, {fmt_date(rnd['date'])}", "", "*Netto*"]
-    lines += [f"{r.rank}. {r.name} – {r.net} P." for r in rows]
+             f"{course['name']}, {fmt_date(rnd['date'])}"
+             + (" – Bogey Competition (voller HCP)" if bogey else ""), "", "*Netto*"]
+    lines += [f"{r.rank}. {r.name} – {val(r.net)}" for r in rows]
     if not rnd.get("totals_only"):
         lines += ["", "*Brutto*"]
-        lines += [f"{r.gross_rank}. {r.name} – {r.gross} P."
+        lines += [f"{r.gross_rank}. {r.name} – {val(r.gross)}"
                   for r in sorted(rows, key=lambda r: (r.gross_rank, r.name.lower()))]
     if teams:
         lines += ["", f"*{team_title(rnd)}*"]
-        lines += [f"{t['rank']}. {t['name']} ({', '.join(t['names'])}) – {t['total']} P." for t in teams]
+        lines += [f"{t['rank']}. {t['name']} ({', '.join(t['names'])}) – {val(t['total'])}" for t in teams]
     return "\n".join(lines)
 
 
